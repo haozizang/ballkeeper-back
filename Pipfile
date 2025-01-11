@@ -1,0 +1,13 @@
+[[source]]
+#url = "https://pypi.org/simple"
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = {extras = ["all"], version = "*"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
