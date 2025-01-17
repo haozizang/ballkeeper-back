@@ -4,7 +4,12 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 import logging
 from enum import IntEnum
 
-logging.basicConfig(level=logging.DEBUG)
+# 配置日志格式
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 # 数据库配置 - 使用 SQLite
 DATABASE_URL = "sqlite:///ballkeeper.db"
@@ -73,6 +78,7 @@ async def register(user: User, session: Session = Depends(get_session)):
 @app.post('/ballkeeper/login/')
 async def login(user: User, session: Session = Depends(get_session)):
     try:
+        logging.debug(f"登录用户: {user}")
         user_exists = session.exec(select(User).where(User.username == user.username)).first()
         if not user_exists:
             return {'res': StatusCode.get_message(StatusCode.USER_NOT_FOUND),
