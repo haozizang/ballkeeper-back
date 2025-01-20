@@ -61,18 +61,18 @@ async def register(user: User, session: Session = Depends(get_session)):
     try:
         user_exists = session.exec(select(User).where(User.username == user.username)).first()
         if user_exists:
-            return {'res': StatusCode.get_message(StatusCode.USER_EXISTS),
+            return {'msg': StatusCode.get_message(StatusCode.USER_EXISTS),
                    'code': StatusCode.USER_EXISTS}
 
         session.add(user)
         session.commit()
         session.refresh(user)
-        return {'res': StatusCode.get_message(StatusCode.SUCCESS),
+        return {'msg': StatusCode.get_message(StatusCode.SUCCESS),
                 'code': StatusCode.SUCCESS}
     except Exception as e:
         session.rollback()
         logging.error(f"数据库操作错误: {e}")
-        return {'res': StatusCode.get_message(StatusCode.DB_ERROR),
+        return {'msg': StatusCode.get_message(StatusCode.DB_ERROR),
                 'code': StatusCode.DB_ERROR}
 
 @app.post('/ballkeeper/login/')
@@ -81,19 +81,19 @@ async def login(user: User, session: Session = Depends(get_session)):
         logging.debug(f"登录用户: {user}")
         user_exists = session.exec(select(User).where(User.username == user.username)).first()
         if not user_exists:
-            return {'res': StatusCode.get_message(StatusCode.USER_NOT_FOUND),
+            return {'msg': StatusCode.get_message(StatusCode.USER_NOT_FOUND),
                    'code': StatusCode.USER_NOT_FOUND}
 
         if user_exists.password != user.password:
-            return {'res': StatusCode.get_message(StatusCode.WRONG_PASSWORD),
+            return {'msg': StatusCode.get_message(StatusCode.WRONG_PASSWORD),
                    'code': StatusCode.WRONG_PASSWORD}
 
-        return {'res': StatusCode.get_message(StatusCode.SUCCESS),
+        return {'msg': StatusCode.get_message(StatusCode.SUCCESS),
                 'code': StatusCode.SUCCESS}
     except Exception as e:
         session.rollback()
         logging.error(f"数据库操作错误: {e}")
-        return {'res': StatusCode.get_message(StatusCode.DB_ERROR),
+        return {'msg': StatusCode.get_message(StatusCode.DB_ERROR),
                 'code': StatusCode.DB_ERROR}
 
 @app.get('/items/{item_id}')
