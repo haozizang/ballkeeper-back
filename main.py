@@ -89,7 +89,8 @@ async def login(user: User, session: Session = Depends(get_session)):
                    'code': StatusCode.WRONG_PASSWORD}
 
         return {'msg': StatusCode.get_message(StatusCode.SUCCESS),
-                'code': StatusCode.SUCCESS}
+                'code': StatusCode.SUCCESS,
+                'data': {'username': user_exists.username}}
     except Exception as e:
         session.rollback()
         logging.error(f"数据库操作错误: {e}")
