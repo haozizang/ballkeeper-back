@@ -1,8 +1,13 @@
 from typing import Optional
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, UploadFile, File, Form
+from fastapi.staticfiles import StaticFiles
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 import logging
 from enum import IntEnum
+import os
+import shutil
+
+STATIC_URL_BASE = "/static"  # 开发环境
 
 # 配置日志格式
 logging.basicConfig(
@@ -41,6 +46,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     password: str
+    avatar_path: Optional[str] = None
 
 # 创建数据库表
 SQLModel.metadata.create_all(engine)
@@ -51,6 +57,7 @@ def get_session():
         yield session
 
 app = FastAPI()
+app.mount("/static/avatars", StaticFiles(directory="avatars"), name="avatars")
 
 @app.get('/ballkeeper/')
 async def hello_world():
@@ -68,12 +75,58 @@ async def register(user: User, session: Session = Depends(get_session)):
         session.commit()
         session.refresh(user)
         return {'msg': StatusCode.get_message(StatusCode.SUCCESS),
-                'code': StatusCode.SUCCESS}
+                'code': StatusCode.SUCCESS,
+                'data': {'username': user.username}}
     except Exception as e:
         session.rollback()
         logging.error(f"数据库操作错误: {e}")
         return {'msg': StatusCode.get_message(StatusCode.DB_ERROR),
                 'code': StatusCode.DB_ERROR}
+
+@app.post('/ballkeeper/upload_avatar/')
+async def upload_avatar(avatar: UploadFile = File(...), username: str = Form(...), session: Session = Depends(get_session)):
+    try:
+        logging.info(f"DBG: username: {username} avatar: {avatar}")
+        # 检查用户是否存在
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            return {
+                'msg': StatusCode.get_message(StatusCode.USER_NOT_FOUND),
+                'code': StatusCode.USER_NOT_FOUND
+            }
+
+        # 创建保存头像的目录
+        avatar_dir = "avatars"
+        if not os.path.exists(avatar_dir):
+            os.makedirs(avatar_dir)
+
+        # 生成文件名（使用用户名和原始文件扩展名）
+        file_extension = os.path.splitext(avatar.filename)[1]
+        avatar_path = f"{avatar_dir}/{username}{file_extension}"
+
+        # 保存文件
+        with open(avatar_path, "wb") as buffer:
+            shutil.copyfileobj(avatar.file, buffer)
+
+        # 更新用户的avatar_path
+        user.avatar_path = avatar_path
+        session.commit()
+
+        avatar_url = f"{STATIC_URL_BASE}/avatars/{username}{file_extension}"
+
+        return {
+            'msg': StatusCode.get_message(StatusCode.SUCCESS),
+            'code': StatusCode.SUCCESS,
+            'data': {'avatar_url': avatar_url}
+        }
+
+    except Exception as e:
+        session.rollback()
+        logging.error(f"上传头像失败: {e}")
+        return {
+            'msg': StatusCode.get_message(StatusCode.DB_ERROR),
+            'code': StatusCode.DB_ERROR
+        }
 
 @app.post('/ballkeeper/login/')
 async def login(user: User, session: Session = Depends(get_session)):

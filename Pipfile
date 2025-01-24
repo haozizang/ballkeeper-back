@@ -7,6 +7,7 @@ name = "pypi"
 [packages]
 fastapi = {extras = ["all"], version = "*"}
 sqlmodel = "*"
+form = "*"
 
 [dev-packages]
 
