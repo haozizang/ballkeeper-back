@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -52,6 +52,19 @@ class User(SQLModel, table=True):
     avatar_path: Optional[str] = None
     team_id: Optional[int] = Field(default=None)
 
+# 添加 Team 模型
+class Team(SQLModel, table=True):
+    __tablename__ = "teams"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(index=True)
+    category_id: int
+    is_public: bool = Field(default=True)
+    mobile: str
+    name: str
+    content: Optional[str] = None
+    creator_id: int = Field(foreign_key="users.id")
+    logo_path: Optional[str] = None
+
 # 创建数据库表
 SQLModel.metadata.create_all(engine)
 
@@ -61,6 +74,7 @@ def get_session():
         yield session
 
 app = FastAPI()
+
 os.makedirs(f"{AVATAR_DIR}", exist_ok=True)
 os.makedirs(f"{TEAM_LOGO_DIR}", exist_ok=True)
 app.mount(f"{STATIC_URL_BASE}/avatar", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
@@ -174,3 +188,53 @@ async def login(user: User, session: Session = Depends(get_session)):
 @app.get('/items/{item_id}')
 async def read_item(item_id: int, q: Optional[str] = None):
     return {'item_id': item_id, 'q': q}
+
+@app.post('/ballkeeper/create_team/')
+async def create_team(
+    username: str = Body(...),
+    title: str = Body(...),
+    category_id: int = Body(...),
+    is_public: bool = Body(...),
+    mobile: str = Body(...),
+    name: str = Body(...),
+    content: Optional[str] = Body(None),
+    session: Session = Depends(get_session)
+):
+    try:
+        # 从请求头获取用户信息（假设已经实现了认证机制）
+        # TODO: 实现proper的用户认证
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="用户未登录"
+            )
+
+        # 创建新团队
+        team = Team(
+            title=title,
+            category_id=category_id,
+            is_public=is_public,
+            mobile=mobile,
+            name=name,
+            content=content,
+            creator_id=user.id
+        )
+
+        session.add(team)
+        session.commit()
+        session.refresh(team)
+
+        # 更新用户的 team_id
+        user.team_id = team.id
+        session.commit()
+
+        return team.id
+
+    except SQLAlchemyError as e:
+        session.rollback()
+        logging.error(f"创建团队失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="创建团队失败"
+        )
