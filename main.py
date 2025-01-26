@@ -89,10 +89,10 @@ async def register(user: User, session: Session = Depends(get_session)):
         )
 
 @app.post('/ballkeeper/upload_image/')
-async def upload_image(image: UploadFile = File(...), image_name: str = Form(...), session: Session = Depends(get_session)):
+async def upload_image(image: UploadFile = File(...), username: str = Form(...), image_name: str = Form(...), session: Session = Depends(get_session)):
     try:
-        logging.info(f"DBG: image_name: {image_name} image: {image}")
-        user = session.exec(select(User).where(User.image_name == image_name)).first()
+        logging.info(f"DBG: username: {username} image_name: {image_name} image: {image}")
+        user = session.exec(select(User).where(User.username == username)).first()
         if not user:
             raise HTTPException(
                 status_code=404,
@@ -117,13 +117,7 @@ async def upload_image(image: UploadFile = File(...), image_name: str = Form(...
         session.commit()
 
         avatar_url = f"{STATIC_URL_BASE}/avatars/{image_name}{file_extension}"
-
-        return {
-            'msg': StatusCode.get_message(StatusCode.SUCCESS),
-            'code': StatusCode.SUCCESS,
-            'data': {'avatar_url': avatar_url}
-        }
-
+        return {'avatar_url': avatar_url}
     except Exception as e:
         session.rollback()
         logging.error(f"上传头像失败: {e}")
