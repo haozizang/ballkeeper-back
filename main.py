@@ -8,7 +8,9 @@ from enum import IntEnum
 import os
 import shutil
 
-STATIC_URL_BASE = "/static"  # 开发环境
+STATIC_URL_BASE = "/static"
+AVATAR_DIR = "images/avatar"
+TEAM_LOGO_DIR = "images/team_logo"
 
 # 配置日志格式
 logging.basicConfig(
@@ -48,6 +50,7 @@ class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)
     password: str
     avatar_path: Optional[str] = None
+    team_id: Optional[int] = Field(default=None)
 
 # 创建数据库表
 SQLModel.metadata.create_all(engine)
@@ -58,8 +61,10 @@ def get_session():
         yield session
 
 app = FastAPI()
-os.makedirs("avatars", exist_ok=True)
-app.mount("/static/avatars", StaticFiles(directory="avatars"), name="avatars")
+os.makedirs(f"{AVATAR_DIR}", exist_ok=True)
+os.makedirs(f"{TEAM_LOGO_DIR}", exist_ok=True)
+app.mount(f"{STATIC_URL_BASE}/avatar", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
+app.mount(f"{STATIC_URL_BASE}/team_logo", StaticFiles(directory=f"{TEAM_LOGO_DIR}"), name="team_logo")
 
 @app.get('/ballkeeper/')
 async def hello_world():
@@ -89,35 +94,49 @@ async def register(user: User, session: Session = Depends(get_session)):
         )
 
 @app.post('/ballkeeper/upload_image/')
-async def upload_image(image: UploadFile = File(...), username: str = Form(...), image_name: str = Form(...), session: Session = Depends(get_session)):
+async def upload_image(username: str=Form(...), image_name: str=Form(...), image_type: str=Form(...), image: UploadFile = File(...), session: Session = Depends(get_session)):
+    logging.info(f"DBG: username: {username} image_name: {image_name} image: {image}")
     try:
-        logging.info(f"DBG: username: {username} image_name: {image_name} image: {image}")
-        user = session.exec(select(User).where(User.username == username)).first()
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail="用户不存在"
-            )
+        if image_type == "avatar":
+            user = session.exec(select(User).where(User.username == username)).first()
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="用户不存在"
+                )
 
-        # 创建保存头像的目录
-        avatar_dir = "avatars"
-        if not os.path.exists(avatar_dir):
-            os.makedirs(avatar_dir)
+            # 生成文件名（使用用户名和原始文件扩展名）
+            file_extension = os.path.splitext(image.filename)[1]
+            avatar_path = f"{AVATAR_DIR}/{image_name}{file_extension}"
 
-        # 生成文件名（使用用户名和原始文件扩展名）
-        file_extension = os.path.splitext(image.filename)[1]
-        avatar_path = f"{avatar_dir}/{image_name}{file_extension}"
+            # 保存文件
+            with open(avatar_path, "wb") as buffer:
+                shutil.copyfileobj(image.file, buffer)
 
-        # 保存文件
-        with open(avatar_path, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
+            # 更新用户的avatar_path
+            user.avatar_path = avatar_path
+            session.commit()
 
-        # 更新用户的avatar_path
-        user.avatar_path = avatar_path
-        session.commit()
+            avatar_url = f"{STATIC_URL_BASE}/avatar/{image_name}{file_extension}"
+            return {'avatar_url': avatar_url}
+        elif image_type == "team_logo":
+            user = session.exec(select(User).where(User.username == username)).first()
+            if not user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="用户不存在"
+                )
+            team_id = user.team_id
+            if not team_id:
+                raise HTTPException(
+                    status_code=404,
+                    detail="用户没有团队"
+                )
 
-        avatar_url = f"{STATIC_URL_BASE}/avatars/{image_name}{file_extension}"
-        return {'avatar_url': avatar_url}
+            team_logo_path = f"{TEAM_LOGO_DIR}/{image_name}{file_extension}"
+            with open(team_logo_path, "wb") as buffer:
+                shutil.copyfileobj(image.file, buffer)
+            return {'team_logo_url': team_logo_path}
     except Exception as e:
         session.rollback()
         logging.error(f"上传头像失败: {e}")
