@@ -75,6 +75,31 @@ def get_session():
 
 app = FastAPI()
 
+# 添加调试中间件
+@app.middleware("http")
+async def log_request_details(request, call_next):
+    # 打印请求方法和URL
+    logging.debug(f"请求方法: {request.method}")
+    logging.debug(f"请求URL: {request.url}")
+
+    # 打印请求头
+    logging.debug("请求头:")
+    for header, value in request.headers.items():
+        logging.debug(f"    {header}: {value}")
+
+    # 打印请求体 (如果是POST/PUT请求)
+    if request.method in ["POST", "PUT"]:
+        try:
+            body = await request.body()
+            logging.debug(f"请求体: {body}")
+            logging.debug(f"请求体decode: {body.decode()}")
+        except Exception as e:
+            logging.debug(f"无法读取请求体: {e}")
+
+    # 继续处理请求
+    response = await call_next(request)
+    return response
+
 os.makedirs(f"{AVATAR_DIR}", exist_ok=True)
 os.makedirs(f"{TEAM_LOGO_DIR}", exist_ok=True)
 app.mount(f"{STATIC_URL_BASE}/avatar", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
