@@ -62,7 +62,8 @@ class Team(SQLModel, table=True):
     mobile: str
     name: str
     content: Optional[str] = None
-    creator_id: int = Field(foreign_key="users.id")
+    # creator_id: int = Field(foreign_key="users.id")
+    creator_id: int = Field(index=True)
     logo_path: Optional[str] = None
 
 # 创建数据库表
