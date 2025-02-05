@@ -7,6 +7,7 @@ import logging
 from enum import IntEnum
 import os
 import shutil
+from datetime import datetime
 
 STATIC_URL_BASE = "/static"
 AVATAR_DIR = "images/avatar"
@@ -43,14 +44,22 @@ class StatusCode(IntEnum):
         }
         return messages.get(code, "未知错误")
 
-# 统一的模型定义，同时用于 API 和数据库
+# 添加用户-球队关联表模型
+class UserTeam(SQLModel, table=True):
+    __tablename__ = "user_team"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id")
+    team_id: int = Field(foreign_key="teams.id")
+    follow_time: datetime = Field(default_factory=datetime.utcnow)
+    role: str = Field(default="member")  # 可以是 "creator", "admin", "member" 等
+
+# 修改 User 模型，移除 team_id 字段
 class User(SQLModel, table=True):
-    __tablename__ = "users"  # 显式定义表名
+    __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True, index=True)
     password: str
     avatar_path: Optional[str] = None
-    team_id: Optional[int] = Field(default=None)
 
 # 添加 Team 模型
 class Team(SQLModel, table=True):
@@ -227,13 +236,11 @@ async def create_team(
     session: Session = Depends(get_session)
 ):
     try:
-        # 从请求头获取用户信息（假设已经实现了认证机制）
-        # TODO: 实现proper的用户认证
         user = session.exec(select(User).where(User.username == username)).first()
         if not user:
             raise HTTPException(
                 status_code=401,
-                detail="用户未登录"
+                detail="用户不存在"
             )
 
         # 创建新团队
@@ -251,11 +258,20 @@ async def create_team(
         session.commit()
         session.refresh(team)
 
-        # 更新用户的 team_id
-        user.team_id = team.id
+        # 创建用户-球队关联记录，设置创建者角色
+        user_team = UserTeam(
+            user_id=user.id,
+            team_id=team.id,
+            role="creator"  # 设置为创建者角色
+        )
+        session.add(user_team)
         session.commit()
 
-        return team.id
+        return {
+            'code': StatusCode.SUCCESS,
+            'msg': StatusCode.get_message(StatusCode.SUCCESS),
+            'data': {'team': team}
+        }
 
     except SQLAlchemyError as e:
         session.rollback()
@@ -264,3 +280,96 @@ async def create_team(
             status_code=500,
             detail="创建团队失败"
         )
+
+'''
+单个参数时, 需要 embed=True 来强制使用 JSON 对象格式
+多个参数时, FastAPI 自动使用 JSON 对象格式，不需要 embed=True
+'''
+@app.post('/ballkeeper/get_team_list/')
+async def get_team_list(username: str = Body(..., embed=True), session: Session = Depends(get_session)):
+    try:
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="用户不存在"
+            )
+
+        # 通过关联表查询用户的所有球队，同时获取关联表的信息
+        query = (
+            select(Team, UserTeam.follow_time, UserTeam.role)
+            .join(UserTeam)
+            .where(UserTeam.user_id == user.id)
+        )
+        results = session.exec(query).all()
+
+        # 构造返回数据，包含球队信息和加入时间
+        team_list = [
+            {
+                **dict(team),
+                "follow_time": follow_time.isoformat(),
+                "role": role
+            }
+            for team, follow_time, role in results
+        ]
+
+        return {
+            'code': StatusCode.SUCCESS,
+            'msg': StatusCode.get_message(StatusCode.SUCCESS),
+            'data': team_list
+        }
+
+    except SQLAlchemyError as e:
+        session.rollback()
+        logging.error(f"获取球队列表失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="获取球队列表失败"
+        )
+
+@app.post('/ballkeeper/follow_team/')
+async def follow_team(
+    username: str = Body(...),
+    team_id: int = Body(...),
+    session: Session = Depends(get_session)
+):
+    try:
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="用户不存在")
+
+        team = session.exec(select(Team).where(Team.id == team_id)).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="球队不存在")
+
+        # 检查是否已经加入
+        existing = session.exec(
+            select(UserTeam).where(
+                UserTeam.user_id == user.id,
+                UserTeam.team_id == team_id
+            )
+        ).first()
+
+        if existing:
+            raise HTTPException(status_code=400, detail="已经加入该球队")
+
+        # 创建新的关联记录
+        user_team = UserTeam(
+            user_id=user.id,
+            team_id=team_id,
+            role="member"
+        )
+        session.add(user_team)
+        session.commit()
+
+        return {
+            'code': StatusCode.SUCCESS,
+            'msg': StatusCode.get_message(StatusCode.SUCCESS)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        logging.error(f"加入球队失败: {e}")
+        raise HTTPException(status_code=500, detail="加入球队失败")
