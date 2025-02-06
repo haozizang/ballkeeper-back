@@ -10,8 +10,8 @@ import shutil
 from datetime import datetime
 
 STATIC_URL_BASE = "/static"
-AVATAR_DIR = "images/avatars"
-TEAM_LOGO_DIR = "images/team_logos"
+AVATAR_DIR = "images/avatar"
+TEAM_LOGO_DIR = "images/team_logo"
 
 # 配置日志格式
 logging.basicConfig(
@@ -54,6 +54,9 @@ class Team(SQLModel, table=True):
     # creator_id: int = Field(foreign_key="users.id")
     creator_id: int = Field(index=True)
     logo_url: Optional[str] = None
+
+    def __str__(self):
+        return f"Team(id={self.id}, title='{self.title}')"
 
 # 创建数据库表
 SQLModel.metadata.create_all(engine)
@@ -234,7 +237,7 @@ async def create_team(
         session.commit()
         session.refresh(team)
 
-        # 创建用户-球队关联记录，设置创建者角色
+        # 创建用户-球队关联记录,设置创建者角色
         user_team = UserTeam(
             user_id=user.id,
             team_id=team.id,
@@ -243,11 +246,13 @@ async def create_team(
         session.add(user_team)
         session.commit()
 
-        return team
+        logging.error(f"创建团队成功: {team}")
 
+        return {'team': team}
     except SQLAlchemyError as e:
         session.rollback()
         # 检查是否是唯一约束违反错误
+        logging.error(f"caught SQLAlchemyError: {e}")
         if "UNIQUE constraint failed" in str(e):
             raise HTTPException(
                 status_code=409,  # Conflict
