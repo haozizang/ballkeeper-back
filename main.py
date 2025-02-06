@@ -264,7 +264,13 @@ async def create_team(
 多个参数时, FastAPI 自动使用 JSON 对象格式，不需要 embed=True
 '''
 @app.post('/ballkeeper/get_team_list/')
-async def get_team_list(username: str = Body(..., embed=True), session: Session = Depends(get_session)):
+async def get_team_list(
+    username: str = Body(...),
+    keyword: str = Body(...),
+    limit: int = Body(...),
+    offset: int = Body(...),
+    session: Session = Depends(get_session)
+):
     try:
         user = session.exec(select(User).where(User.username == username)).first()
         if not user:
@@ -273,15 +279,27 @@ async def get_team_list(username: str = Body(..., embed=True), session: Session 
                 detail="用户不存在"
             )
 
-        # 通过关联表查询用户的所有球队，同时获取关联表的信息
+        # 构建基础查询
         query = (
             select(Team, UserTeam.follow_time, UserTeam.role)
             .join(UserTeam)
             .where(UserTeam.user_id == user.id)
         )
+
+        # 添加标题搜索条件（如果keyword不为空）
+        if keyword.strip():
+            query = query.where(Team.title.contains(keyword))
+
+        # 获取总记录数
+        total_count = len(session.exec(query).all())
+
+        # 添加分页(SELECT columns FROM table LIMIT [number_of_rows] OFFSET [number_of_rows_to_skip];)
+        query = query.offset(offset).limit(limit)
+
+        # 执行查询
         results = session.exec(query).all()
 
-        # 构造返回数据，包含球队信息和加入时间
+        # 构造返回数据
         team_list = [
             {
                 **dict(team),
@@ -291,7 +309,7 @@ async def get_team_list(username: str = Body(..., embed=True), session: Session 
             for team, follow_time, role in results
         ]
 
-        return team_list
+        return {'total': total_count, 'team_list': team_list, 'offset': offset, 'limit': limit}
 
     except SQLAlchemyError as e:
         session.rollback()
