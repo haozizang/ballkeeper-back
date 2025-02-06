@@ -220,10 +220,6 @@ async def login(user: User, session: Session = Depends(get_session)):
             detail="数据库操作失败"
         )
 
-@app.get('/items/{item_id}')
-async def read_item(item_id: int, q: Optional[str] = None):
-    return {'item_id': item_id, 'q': q}
-
 @app.post('/ballkeeper/create_team/')
 async def create_team(
     username: str = Body(...),
