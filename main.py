@@ -10,8 +10,8 @@ import shutil
 from datetime import datetime
 
 STATIC_URL_BASE = "/static"
-AVATAR_DIR = "images/avatar"
-TEAM_LOGO_DIR = "images/team_logo"
+AVATAR_DIR = "images/avatars"
+TEAM_LOGO_DIR = "images/team_logos"
 
 # 配置日志格式
 logging.basicConfig(
@@ -23,26 +23,6 @@ logging.basicConfig(
 # 数据库配置 - 使用 SQLite
 DATABASE_URL = "sqlite:///ballkeeper.db"
 engine = create_engine(DATABASE_URL)
-
-# 定义状态码枚举
-class StatusCode(IntEnum):
-    SUCCESS = 0
-    ERROR = 1
-    USER_EXISTS = 2
-    USER_NOT_FOUND = 3
-    WRONG_PASSWORD = 4
-    DB_ERROR = 5
-
-    @classmethod
-    def get_message(cls, code):
-        messages = {
-            cls.SUCCESS: "ok",
-            cls.DB_ERROR: "数据库操作失败",
-            cls.USER_EXISTS: "用户已存在",
-            cls.USER_NOT_FOUND: "用户不存在",
-            cls.WRONG_PASSWORD: "密码错误"
-        }
-        return messages.get(code, "未知错误")
 
 # 添加用户-球队关联表模型
 class UserTeam(SQLModel, table=True):
@@ -65,7 +45,7 @@ class User(SQLModel, table=True):
 class Team(SQLModel, table=True):
     __tablename__ = "teams"
     id: Optional[int] = Field(default=None, primary_key=True)
-    title: str = Field(index=True)
+    title: str = Field(unique=True, index=True)
     category_id: int
     is_public: bool = Field(default=True)
     mobile: str
@@ -73,7 +53,7 @@ class Team(SQLModel, table=True):
     content: Optional[str] = None
     # creator_id: int = Field(foreign_key="users.id")
     creator_id: int = Field(index=True)
-    logo_path: Optional[str] = None
+    logo_url: Optional[str] = None
 
 # 创建数据库表
 SQLModel.metadata.create_all(engine)
@@ -263,14 +243,16 @@ async def create_team(
         session.add(user_team)
         session.commit()
 
-        return {
-            'code': StatusCode.SUCCESS,
-            'msg': StatusCode.get_message(StatusCode.SUCCESS),
-            'data': {'team': team}
-        }
+        return team
 
     except SQLAlchemyError as e:
         session.rollback()
+        # 检查是否是唯一约束违反错误
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail="球队名称已存在"
+            )
         logging.error(f"创建团队失败: {e}")
         raise HTTPException(
             status_code=500,
@@ -309,11 +291,7 @@ async def get_team_list(username: str = Body(..., embed=True), session: Session 
             for team, follow_time, role in results
         ]
 
-        return {
-            'code': StatusCode.SUCCESS,
-            'msg': StatusCode.get_message(StatusCode.SUCCESS),
-            'data': team_list
-        }
+        return team_list
 
     except SQLAlchemyError as e:
         session.rollback()
@@ -358,10 +336,7 @@ async def follow_team(
         session.add(user_team)
         session.commit()
 
-        return {
-            'code': StatusCode.SUCCESS,
-            'msg': StatusCode.get_message(StatusCode.SUCCESS)
-        }
+        return team
 
     except HTTPException:
         raise
