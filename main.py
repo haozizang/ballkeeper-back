@@ -245,7 +245,6 @@ async def create_team(
         )
         session.add(user_team)
         session.commit()
-
         logging.error(f"创建团队成功: {team}")
 
         return {'team': team}
@@ -259,10 +258,27 @@ async def create_team(
                 detail="球队名称已存在"
             )
         logging.error(f"创建团队失败: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="创建团队失败"
+        raise HTTPException(status_code=500, detail="创建团队失败")
+
+@app.post('/ballkeeper/get_team/')
+async def get_team(team_id: int = Body(..., embed=True), session: Session = Depends(get_session)):
+    try:
+        # 构建基础查询
+        query = (
+            select(Team)
+            .where(Team.id == team_id)
         )
+
+        # 执行查询
+        team = session.exec(query).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="球队不存在")
+
+        return {'team': team}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logging.error(f"获取球队(id={team_id})失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取球队(id={team_id})失败")
 
 '''
 单个参数时, 需要 embed=True 来强制使用 JSON 对象格式
