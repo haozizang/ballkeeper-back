@@ -9,9 +9,12 @@ import os
 import shutil
 from datetime import datetime
 
-STATIC_URL_BASE = "/static"
 AVATAR_DIR = "images/avatar"
 TEAM_LOGO_DIR = "images/team_logo"
+APP_DIR = "images/app"
+
+def path_from_dir(dir):
+    return f"/{dir}"
 
 # 配置日志格式
 logging.basicConfig(
@@ -78,7 +81,7 @@ async def log_request_details(request, call_next):
     # 打印请求头
     logging.debug("请求头:")
     for header, value in request.headers.items():
-        logging.debug(f"    {header}: {value}")
+        logging.debug(f"{header}: {value}")
 
     # 打印请求体 (如果是POST/PUT请求)
     if request.method in ["POST", "PUT"]:
@@ -95,12 +98,17 @@ async def log_request_details(request, call_next):
 
 os.makedirs(f"{AVATAR_DIR}", exist_ok=True)
 os.makedirs(f"{TEAM_LOGO_DIR}", exist_ok=True)
-app.mount(f"{STATIC_URL_BASE}/avatar", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
-app.mount(f"{STATIC_URL_BASE}/team_logo", StaticFiles(directory=f"{TEAM_LOGO_DIR}"), name="team_logo")
+app.mount(f"{path_from_dir(AVATAR_DIR)}", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
+app.mount(f"{path_from_dir(TEAM_LOGO_DIR)}", StaticFiles(directory=f"{TEAM_LOGO_DIR}"), name="team_logo")
+app.mount(f"{path_from_dir(APP_DIR)}", StaticFiles(directory=f"{APP_DIR}"), name="app")
 
 @app.get('/ballkeeper/')
 async def hello_world():
     return {'Hello': 'World'}
+
+@app.get('/ballkeeper/get_app_info/')
+async def get_app_info():
+    return {'name': 'ballkeeper', 'logo_path': '/static/app/logo.png', 'version': '1.0.0'}
 
 @app.post('/ballkeeper/register/')
 async def register(user: User, session: Session = Depends(get_session)):
@@ -139,18 +147,17 @@ async def upload_image(username: str=Form(...), image_name: str=Form(...), image
 
             # 生成文件名（使用用户名和原始文件扩展名）
             file_extension = os.path.splitext(image.filename)[1]
-            avatar_path = f"{AVATAR_DIR}/{image_name}{file_extension}"
+            avatar_path = f"{path_from_dir(AVATAR_DIR)}/{image_name}{file_extension}"
 
             # 保存文件
-            with open(avatar_path, "wb") as buffer:
+            with open(f".{avatar_path}", "wb") as buffer:
                 shutil.copyfileobj(image.file, buffer)
 
             # 更新用户的avatar_path
             user.avatar_path = avatar_path
             session.commit()
 
-            avatar_url = f"{STATIC_URL_BASE}/avatar/{image_name}{file_extension}"
-            return {'avatar_url': avatar_url}
+            return {'img_path': avatar_path}
         elif image_type == "team_logo":
             user = session.exec(select(User).where(User.username == username)).first()
             if not user:
@@ -165,10 +172,10 @@ async def upload_image(username: str=Form(...), image_name: str=Form(...), image
                     detail="用户没有团队"
                 )
 
-            team_logo_path = f"{TEAM_LOGO_DIR}/{image_name}{file_extension}"
-            with open(team_logo_path, "wb") as buffer:
+            team_logo_path = f"{path_from_dir(TEAM_LOGO_DIR)}/{image_name}{file_extension}"
+            with open(f".{team_logo_path}", "wb") as buffer:
                 shutil.copyfileobj(image.file, buffer)
-            return {'team_logo_url': team_logo_path}
+            return {'img_path': team_logo_path}
     except Exception as e:
         session.rollback()
         logging.error(f"上传头像失败: {e}")
@@ -181,26 +188,26 @@ async def upload_image(username: str=Form(...), image_name: str=Form(...), image
 async def login(user: User, session: Session = Depends(get_session)):
     try:
         logging.debug(f"登录用户: {user}")
-        user_exists = session.exec(select(User).where(User.username == user.username)).first()
-        if not user_exists:
+        user = session.exec(select(User).where(User.username == user.username)).first()
+        if not user:
             raise HTTPException(
                 status_code=404,
                 detail="用户不存在"
             )
 
-        if user_exists.password != user.password:
+        if user.password != user.password:
             raise HTTPException(
                 status_code=401,
                 detail="密码错误"
             )
 
-        return {'username': user_exists.username}
+        return {'username': user.username, 'avatar_path': user.avatar_path}
     except Exception as e:
         session.rollback()
         logging.error(f"数据库操作错误: {e}")
         raise HTTPException(
             status_code=500,
-            detail="数据库操作失败"
+            detail=f"登录失败: {e}"
         )
 
 @app.post('/ballkeeper/create_team/')
