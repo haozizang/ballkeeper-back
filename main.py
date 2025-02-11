@@ -132,7 +132,7 @@ async def register(user: User, session: Session = Depends(get_session)):
         session.add(user)
         session.commit()
         session.refresh(user)
-        return {'username': user.username}
+        return {'user': user}
     except SQLAlchemyError as e:
         session.rollback()
         logging.error(f"数据库操作错误: {e}")
