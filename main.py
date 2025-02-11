@@ -248,6 +248,11 @@ async def create_team(
             creator_id=user.id
         )
 
+        img = gen_txt_img(title)
+        img_path = f"{path_from_dir(TEAM_LOGO_DIR)}/{title}.png"
+        img.save(f".{img_path}")
+        team.logo_path = img_path
+
         session.add(team)
         session.commit()
         session.refresh(team)
