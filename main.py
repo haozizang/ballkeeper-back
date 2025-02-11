@@ -8,6 +8,7 @@ from enum import IntEnum
 import os
 import shutil
 from datetime import datetime
+from img_generator.img_gen import gen_txt_img
 
 AVATAR_DIR = "images/avatar"
 TEAM_LOGO_DIR = "images/team_logo"
@@ -120,6 +121,13 @@ async def register(user: User, session: Session = Depends(get_session)):
                 status_code=409,
                 detail="用户已存在"
             )
+
+        # 生成默认头像
+        if not user.avatar_path:
+            img = gen_txt_img(user.username)
+            img_path = f"{path_from_dir(AVATAR_DIR)}/{user.username}.png"
+            img.save(f".{img_path}")
+            user.avatar_path = img_path
 
         session.add(user)
         session.commit()
