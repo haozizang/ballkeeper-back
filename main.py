@@ -56,7 +56,7 @@ class Team(SQLModel, table=True):
     content: Optional[str] = None
     # creator_id: int = Field(foreign_key="users.id")
     creator_id: int = Field(index=True)
-    logo_url: Optional[str] = None
+    logo_path: Optional[str] = None
 
     def __str__(self):
         return f"Team(id={self.id}, title='{self.title}')"
