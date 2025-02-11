@@ -1,6 +1,8 @@
 from PIL import Image, ImageDraw, ImageFont
 import random
 import os
+import time
+import secrets
 
 def get_system_font():
     """获取系统中文字体"""
@@ -28,14 +30,26 @@ def get_contrast_color(bg_color):
     # 如果背景偏亮，返回黑色；如果背景偏暗，返回白色
     return (0, 0, 0) if brightness > 128 else (255, 255, 255)
 
-def generate_text_avatar(text, size=(50, 50)):
+def gen_txt_img(text, size=(50, 50)):
+    # 使用时间戳和随机数组合作为种子
+    random.seed(int(time.time() * 1000) + secrets.randbelow(1000000))
+    
+    # 使用 secrets 模块生成更随机的颜色
+    color1 = (
+        secrets.randbelow(151) + 50,  # 50-200 范围
+        secrets.randbelow(151) + 50,
+        secrets.randbelow(151) + 50
+    )
+    
+    color2 = (
+        secrets.randbelow(151) + 50,
+        secrets.randbelow(151) + 50,
+        secrets.randbelow(151) + 50
+    )
+
     # 创建新图片
     img = Image.new('RGB', size)
     draw = ImageDraw.Draw(img)
-    
-    # 生成随机背景色（避免太暗或太亮的颜色）
-    color1 = (random.randint(50, 200), random.randint(50, 200), random.randint(50, 200))
-    color2 = (random.randint(50, 200), random.randint(50, 200), random.randint(50, 200))
     
     # 创建渐变背景
     for y in range(size[1]):
@@ -70,8 +84,8 @@ def generate_text_avatar(text, size=(50, 50)):
         text_height = text_bbox[3] - text_bbox[1]
         
         # 调整字体大小直到文字适合图片（宽度不超过70%）
-        max_width = size[0] * 0.9
-        max_height = size[1] * 0.9
+        max_width = size[0] * 0.8
+        max_height = size[1] * 0.8
         
         if text_width > max_width or text_height > max_height:
             # 如果初始大小太大，就逐步缩小
@@ -104,9 +118,10 @@ def generate_text_avatar(text, size=(50, 50)):
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
     
-    # 计算居中位置
+    # 修改计算居中位置的方式
     x = (size[0] - text_width) // 2
-    y = (size[1] - text_height) // 2
+    # 考虑文字的基线偏移
+    y = (size[1] - text_height) // 2 - text_bbox[1]  # 减去基线偏移量
 
     # 绘制文字
     draw.text((x, y), text, fill=text_color, font=font)
@@ -115,6 +130,6 @@ def generate_text_avatar(text, size=(50, 50)):
 
 # 使用示例
 if __name__ == "__main__":
-    for text in ["good", "bad", "shit", "fuck", "张浩", "吕宜莲", "fuckyoutaaboo"]:
-        avatar = generate_text_avatar(text)
+    for text in ["aa", "bf", 's']:
+        avatar = gen_txt_img(text)
         avatar.save(f"{text}.png")
