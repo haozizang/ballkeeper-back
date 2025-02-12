@@ -1,66 +1,21 @@
 from typing import Optional
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, select
 from sqlalchemy.exc import SQLAlchemyError
 import logging
-from enum import IntEnum
 import os
 import shutil
-from datetime import datetime
 from img_generator.img_gen import gen_txt_img
+from models import User, Team, UserTeam
+from utils import path_from_dir
+from log import create_logger
+from envs import DATABASE_URL, AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
 
-AVATAR_DIR = "images/avatar"
-TEAM_LOGO_DIR = "images/team_logo"
-APP_DIR = "images/app"
-
-def path_from_dir(dir):
-    return f"/{dir}"
-
-# 配置日志格式
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+logger = create_logger(name="ballkeeper", level="debug", log_dir="logs")
 
 # 数据库配置 - 使用 SQLite
-DATABASE_URL = "sqlite:///ballkeeper.db"
 engine = create_engine(DATABASE_URL)
-
-# 添加用户-球队关联表模型
-class UserTeam(SQLModel, table=True):
-    __tablename__ = "user_team"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id")
-    team_id: int = Field(foreign_key="teams.id")
-    follow_time: datetime = Field(default_factory=datetime.utcnow)
-    role: str = Field(default="member")  # 可以是 "creator", "admin", "member" 等
-
-# 修改 User 模型，移除 team_id 字段
-class User(SQLModel, table=True):
-    __tablename__ = "users"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(unique=True, index=True)
-    password: str
-    avatar_path: Optional[str] = None
-
-# 添加 Team 模型
-class Team(SQLModel, table=True):
-    __tablename__ = "teams"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    title: str = Field(unique=True, index=True)
-    category_id: int
-    is_public: bool = Field(default=True)
-    mobile: str
-    name: str
-    content: Optional[str] = None
-    # creator_id: int = Field(foreign_key="users.id")
-    creator_id: int = Field(index=True)
-    logo_path: Optional[str] = None
-
-    def __str__(self):
-        return f"Team(id={self.id}, title='{self.title}')"
 
 # 创建数据库表
 SQLModel.metadata.create_all(engine)
@@ -76,22 +31,22 @@ app = FastAPI()
 @app.middleware("http")
 async def log_request_details(request, call_next):
     # 打印请求方法和URL
-    logging.debug(f"请求方法: {request.method}")
-    logging.debug(f"请求URL: {request.url}")
+    logger.debug(f"请求方法: {request.method}")
+    logger.debug(f"请求URL: {request.url}")
 
     # 打印请求头
-    logging.debug("请求头:")
+    logger.debug("请求头:")
     for header, value in request.headers.items():
-        logging.debug(f"{header}: {value}")
+        logger.debug(f"{header}: {value}")
 
     # 打印请求体 (如果是POST/PUT请求)
     if request.method in ["POST", "PUT"]:
         try:
             body = await request.body()
-            logging.debug(f"请求体: {body}")
-            logging.debug(f"请求体decode: {body.decode()}")
+            logger.debug(f"请求体: {body}")
+            logger.debug(f"请求体decode: {body.decode()}")
         except Exception as e:
-            logging.debug(f"无法读取请求体: {e}")
+            logger.debug(f"无法读取请求体: {e}")
 
     # 继续处理请求
     response = await call_next(request)
@@ -109,7 +64,7 @@ async def hello_world():
 
 @app.get('/ballkeeper/get_app_info/')
 async def get_app_info():
-    return {'name': 'ballkeeper', 'logo_path': '/static/app/logo.png', 'version': '1.0.0'}
+    return {'name': 'ballkeeper', 'logo_path': '/images/app/logo.png', 'version': '1.0.0'}
 
 @app.post('/ballkeeper/register/')
 async def register(user: User, session: Session = Depends(get_session)):
@@ -135,7 +90,7 @@ async def register(user: User, session: Session = Depends(get_session)):
         return {'user': user}
     except SQLAlchemyError as e:
         session.rollback()
-        logging.error(f"数据库操作错误: {e}")
+        logger.error(f"数据库操作错误: {e}")
         raise HTTPException(
             status_code=500,
             detail="数据库操作失败"
@@ -143,7 +98,7 @@ async def register(user: User, session: Session = Depends(get_session)):
 
 @app.post('/ballkeeper/upload_image/')
 async def upload_image(username: str=Form(...), image_name: str=Form(...), image_type: str=Form(...), image: UploadFile = File(...), session: Session = Depends(get_session)):
-    logging.info(f"DBG: username: {username} image_name: {image_name} image: {image}")
+    logger.info(f"DBG: username: {username} image_name: {image_name} image: {image}")
     try:
         if image_type == "avatar":
             user = session.exec(select(User).where(User.username == username)).first()
@@ -186,7 +141,7 @@ async def upload_image(username: str=Form(...), image_name: str=Form(...), image
             return {'img_path': team_logo_path}
     except Exception as e:
         session.rollback()
-        logging.error(f"上传头像失败: {e}")
+        logger.error(f"上传头像失败: {e}")
         raise HTTPException(
             status_code=500,
             detail="上传头像失败"
@@ -195,7 +150,7 @@ async def upload_image(username: str=Form(...), image_name: str=Form(...), image
 @app.post('/ballkeeper/login/')
 async def login(user: User, session: Session = Depends(get_session)):
     try:
-        logging.debug(f"登录用户: {user}")
+        logger.debug(f"登录用户: {user}")
         user = session.exec(select(User).where(User.username == user.username)).first()
         if not user:
             raise HTTPException(
@@ -212,7 +167,7 @@ async def login(user: User, session: Session = Depends(get_session)):
         return {'username': user.username, 'avatar_path': user.avatar_path}
     except Exception as e:
         session.rollback()
-        logging.error(f"数据库操作错误: {e}")
+        logger.error(f"数据库操作错误: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"登录失败: {e}"
@@ -265,19 +220,19 @@ async def create_team(
         )
         session.add(user_team)
         session.commit()
-        logging.error(f"创建团队成功: {team}")
+        logger.error(f"创建团队成功: {team}")
 
         return {'team': team}
     except SQLAlchemyError as e:
         session.rollback()
         # 检查是否是唯一约束违反错误
-        logging.error(f"caught SQLAlchemyError: {e}")
+        logger.error(f"caught SQLAlchemyError: {e}")
         if "UNIQUE constraint failed" in str(e):
             raise HTTPException(
                 status_code=409,  # Conflict
                 detail="球队名称已存在"
             )
-        logging.error(f"创建团队失败: {e}")
+        logger.error(f"创建团队失败: {e}")
         raise HTTPException(status_code=500, detail="创建团队失败")
 
 @app.post('/ballkeeper/get_team/')
@@ -297,7 +252,7 @@ async def get_team(team_id: int = Body(..., embed=True), session: Session = Depe
         return {'team': team}
     except SQLAlchemyError as e:
         session.rollback()
-        logging.error(f"获取球队(id={team_id})失败: {e}")
+        logger.error(f"获取球队(id={team_id})失败: {e}")
         raise HTTPException(status_code=500, detail=f"获取球队(id={team_id})失败")
 
 '''
@@ -354,7 +309,7 @@ async def get_team_list(
 
     except SQLAlchemyError as e:
         session.rollback()
-        logging.error(f"获取球队列表失败: {e}")
+        logger.error(f"获取球队列表失败: {e}")
         raise HTTPException(
             status_code=500,
             detail="获取球队列表失败"
@@ -401,5 +356,5 @@ async def follow_team(
         raise
     except Exception as e:
         session.rollback()
-        logging.error(f"加入球队失败: {e}")
+        logger.error(f"加入球队失败: {e}")
         raise HTTPException(status_code=500, detail="加入球队失败")
