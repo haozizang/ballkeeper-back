@@ -1,29 +1,17 @@
 from typing import Optional
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
-import logging
 import os
 import shutil
 from img_generator.img_gen import gen_txt_img
-from models import User, Team, UserTeam
+from models import User, Team, UserTeam, get_session
 from utils import path_from_dir
 from log import create_logger
-from envs import DATABASE_URL, AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
+from envs import AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
 
 logger = create_logger(name="ballkeeper", level="debug", log_dir="logs")
-
-# 数据库配置 - 使用 SQLite
-engine = create_engine(DATABASE_URL)
-
-# 创建数据库表
-SQLModel.metadata.create_all(engine)
-
-# 依赖项
-def get_session():
-    with Session(engine) as session:
-        yield session
 
 app = FastAPI()
 
