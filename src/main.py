@@ -1,3 +1,9 @@
+import sys
+import os
+
+# 添加main.py所在目录到 Python 路径
+sys.path.append(os.path.dirname(__file__))
+
 from typing import Optional
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
@@ -9,9 +15,9 @@ from img_generator.img_gen import gen_txt_img
 from models import User, Team, UserTeam, get_session
 from utils import path_from_dir
 from log import create_logger
-from envs import AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
+from envs import ROOT_DIR, AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
 
-logger = create_logger(name="ballkeeper", level="debug", log_dir="logs")
+logger = create_logger(name="ballkeeper", level="debug", log_dir=f"{ROOT_DIR}/logs")
 
 app = FastAPI()
 
@@ -40,8 +46,6 @@ async def log_request_details(request, call_next):
     response = await call_next(request)
     return response
 
-os.makedirs(f"{AVATAR_DIR}", exist_ok=True)
-os.makedirs(f"{TEAM_LOGO_DIR}", exist_ok=True)
 app.mount(f"{path_from_dir(AVATAR_DIR)}", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
 app.mount(f"{path_from_dir(TEAM_LOGO_DIR)}", StaticFiles(directory=f"{TEAM_LOGO_DIR}"), name="team_logo")
 app.mount(f"{path_from_dir(APP_DIR)}", StaticFiles(directory=f"{APP_DIR}"), name="app")
