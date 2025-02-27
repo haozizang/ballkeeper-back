@@ -12,8 +12,8 @@ from sqlalchemy.exc import SQLAlchemyError
 import os
 import shutil
 from img_generator.img_gen import gen_txt_img
-from models import User, Team, UserTeam, get_session
-from utils import path_from_dir
+from models import User, Team, UserTeam, League, UserLeague, get_session
+from utils import path_from_dir, strfnow
 from log import create_logger
 from envs import ROOT_DIR, AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
 
@@ -350,3 +350,61 @@ async def follow_team(
         session.rollback()
         logger.error(f"加入球队失败: {e}")
         raise HTTPException(status_code=500, detail="加入球队失败")
+
+@app.post('/ballkeeper/create_league/')
+async def create_league(
+    creator: str = Body(...),
+    name: str = Body(...),
+    league_type_ind: int = Body(...),
+    mobile: str = Body(...),
+    content: Optional[str] = Body(None),
+    session: Session = Depends(get_session)
+):
+    try:
+        user = session.exec(select(User).where(User.username == creator)).first()
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="用户不存在"
+            )
+
+        # 创建新联赛
+        league = League(
+            name=name,
+            league_type_ind=league_type_ind,
+            mobile=mobile,
+            content=content,
+            creator_id=user.id
+        )
+
+        img = gen_txt_img(name)
+        img_path = f"{ROOT_DIR}/images/{strfnow()}.png"
+        img.save(f".{img_path}")
+        league.logo_path = img_path
+
+        session.add(league)
+        session.commit()
+        session.refresh(league)
+
+        # 创建用户-联赛关联记录,设置创建者角色
+        user_league = UserLeague(
+            user_id=user.id,
+            league_id=league.id,
+            role="creator"  # 设置为创建者角色
+        )
+        session.add(user_league)
+        session.commit()
+        logger.error(f"创建联赛成功: {league}")
+
+        return {'league': league}
+    except SQLAlchemyError as e:
+        session.rollback()
+        # 检查是否是唯一约束违反错误
+        logger.error(f"caught SQLAlchemyError: {e}")
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail="联赛名称已存在"
+            )
+        logger.error(f"创建联赛失败: {e}")
+        raise HTTPException(status_code=500, detail="创建联赛失败")
