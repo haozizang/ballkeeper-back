@@ -8,11 +8,8 @@ import os
 DATABASE_URL = "sqlite:///ballkeeper.db"
 
 # 图片
-ROOT_DIR = ".."
-AVATAR_DIR = f"{ROOT_DIR}/images/avatar"
-TEAM_LOGO_DIR = f"{ROOT_DIR}/images/team_logo"
-APP_DIR = f"{ROOT_DIR}/images/app"
+# parent dir
+ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+IMG_DIR = os.path.join(ROOT_DIR, "images")
 
-os.makedirs(f"{AVATAR_DIR}", exist_ok=True)
-os.makedirs(f"{TEAM_LOGO_DIR}", exist_ok=True)
-os.makedirs(f"{APP_DIR}", exist_ok=True)
+os.makedirs(IMG_DIR, exist_ok=True)

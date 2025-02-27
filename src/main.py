@@ -4,20 +4,20 @@ import os
 # 添加main.py所在目录到 Python 路径
 sys.path.append(os.path.dirname(__file__))
 
+from envs import ROOT_DIR, IMG_DIR
+from log import create_logger
+
+logger = create_logger(name="ballkeeper", level="debug", log_dir=f"{ROOT_DIR}/logs")
+
 from typing import Optional
 from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
-import os
-import shutil
 from img_generator.img_gen import gen_txt_img
 from models import User, Team, UserTeam, League, UserLeague, get_session
-from utils import path_from_dir, strfnow
-from log import create_logger
-from envs import ROOT_DIR, AVATAR_DIR, TEAM_LOGO_DIR, APP_DIR
+from utils import path_from_dir, strfnow, compress_image
 
-logger = create_logger(name="ballkeeper", level="debug", log_dir=f"{ROOT_DIR}/logs")
 
 app = FastAPI()
 
@@ -37,8 +37,7 @@ async def log_request_details(request, call_next):
     if request.method in ["POST", "PUT"]:
         try:
             body = await request.body()
-            logger.debug(f"请求体: {body}")
-            logger.debug(f"请求体decode: {body.decode()}")
+            logger.debug(f"请求体decode: {body.decode()[:100]}")
         except Exception as e:
             logger.debug(f"无法读取请求体: {e}")
 
@@ -46,9 +45,7 @@ async def log_request_details(request, call_next):
     response = await call_next(request)
     return response
 
-app.mount(f"{path_from_dir(AVATAR_DIR)}", StaticFiles(directory=f"{AVATAR_DIR}"), name="avatar")
-app.mount(f"{path_from_dir(TEAM_LOGO_DIR)}", StaticFiles(directory=f"{TEAM_LOGO_DIR}"), name="team_logo")
-app.mount(f"{path_from_dir(APP_DIR)}", StaticFiles(directory=f"{APP_DIR}"), name="app")
+app.mount('/images', StaticFiles(directory=IMG_DIR), name="images")
 
 @app.get('/ballkeeper/')
 async def hello_world():
@@ -72,8 +69,8 @@ async def register(user: User, session: Session = Depends(get_session)):
         # 生成默认头像
         if not user.avatar_path:
             img = gen_txt_img(user.username)
-            img_path = f"{path_from_dir(AVATAR_DIR)}/{user.username}.png"
-            img.save(f".{img_path}")
+            img_path = f"{ROOT_DIR}/images/avatar_{strfnow()}.png"
+            img.save(img_path)
             user.avatar_path = img_path
 
         session.add(user)
@@ -89,54 +86,39 @@ async def register(user: User, session: Session = Depends(get_session)):
         )
 
 @app.post('/ballkeeper/upload_image/')
-async def upload_image(username: str=Form(...), image_name: str=Form(...), image_type: str=Form(...), image: UploadFile = File(...), session: Session = Depends(get_session)):
-    logger.info(f"DBG: username: {username} image_name: {image_name} image: {image}")
+async def upload_image(image_type: str=Form(...), image: UploadFile = File(...), session: Session = Depends(get_session)):
+    logger.info(f"DBG: image_type: {image_type}")
     try:
-        if image_type == "avatar":
-            user = session.exec(select(User).where(User.username == username)).first()
-            if not user:
-                raise HTTPException(
-                    status_code=404,
-                    detail="用户不存在"
-                )
+        # 读取上传文件内容
+        contents = await image.read()
 
-            # 生成文件名（使用用户名和原始文件扩展名）
-            file_extension = os.path.splitext(image.filename)[1]
-            avatar_path = f"{path_from_dir(AVATAR_DIR)}/{image_name}{file_extension}"
+        # 获取文件扩展名
+        ext = os.path.splitext(image.filename)[1].lower()
 
-            # 保存文件
-            with open(f".{avatar_path}", "wb") as buffer:
-                shutil.copyfileobj(image.file, buffer)
+        # 生成文件名和路径
+        timestamp = strfnow()
+        img_dir = f"images/{image_type}_{timestamp}{ext}"
+        abs_path = os.path.join(f"{ROOT_DIR}", img_dir)
 
-            # 更新用户的avatar_path
-            user.avatar_path = avatar_path
-            session.commit()
+        # 压缩图片
+        compressed_img = compress_image(contents, ext)
 
-            return {'img_path': avatar_path}
-        elif image_type == "team_logo":
-            user = session.exec(select(User).where(User.username == username)).first()
-            if not user:
-                raise HTTPException(
-                    status_code=404,
-                    detail="用户不存在"
-                )
-            team_id = user.team_id
-            if not team_id:
-                raise HTTPException(
-                    status_code=404,
-                    detail="用户没有团队"
-                )
+        # 保存压缩后的图片
+        logger.info(f"DBG: save compressed image to {abs_path}")
+        with open(abs_path, "wb") as f:
+            f.write(compressed_img)
 
-            team_logo_path = f"{path_from_dir(TEAM_LOGO_DIR)}/{image_name}{file_extension}"
-            with open(f".{team_logo_path}", "wb") as buffer:
-                shutil.copyfileobj(image.file, buffer)
-            return {'img_path': team_logo_path}
+        # 构造返回URL
+
+        return {
+            'img_path': f'/{img_dir}'
+        }
     except Exception as e:
         session.rollback()
-        logger.error(f"上传头像失败: {e}")
+        logger.error(f"上传图片失败: {e}")
         raise HTTPException(
             status_code=500,
-            detail="上传头像失败"
+            detail="上传图片失败"
         )
 
 @app.post('/ballkeeper/login/')
@@ -379,7 +361,7 @@ async def create_league(
 
         img = gen_txt_img(name)
         img_path = f"{ROOT_DIR}/images/{strfnow()}.png"
-        img.save(f".{img_path}")
+        img.save(img_path)
         league.logo_path = img_path
 
         session.add(league)
