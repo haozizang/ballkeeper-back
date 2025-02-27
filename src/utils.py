@@ -12,6 +12,9 @@ def path_from_dir(dir):
 def strfnow():
     return datetime.now().strftime("%Y%m%d%H%M%S%f")
 
+def get_img_path(image_type, ext):
+    return f"/images/{image_type}_{strfnow()}{ext}"
+
 def compress_image(image_data: bytes, file_extension: str, max_size: int = 100 * 1024) -> bytes:
     """
     压缩图片至指定大小以内

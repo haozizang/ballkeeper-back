@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
 from models import User, Team, UserTeam, League, UserLeague, get_session
-from utils import path_from_dir, strfnow, compress_image
+from utils import path_from_dir, strfnow, compress_image, get_img_path
 
 
 app = FastAPI()
@@ -69,8 +69,9 @@ async def register(user: User, session: Session = Depends(get_session)):
         # 生成默认头像
         if not user.avatar_path:
             img = gen_txt_img(user.username)
-            img_path = f"{ROOT_DIR}/images/avatar_{strfnow()}.png"
-            img.save(img_path)
+            img_path = get_img_path("avatar", ".png")
+            abs_path = f"{ROOT_DIR}{img_path}"
+            img.save(abs_path)
             user.avatar_path = img_path
 
         session.add(user)
@@ -96,9 +97,8 @@ async def upload_image(image_type: str=Form(...), image: UploadFile = File(...),
         ext = os.path.splitext(image.filename)[1].lower()
 
         # 生成文件名和路径
-        timestamp = strfnow()
-        img_dir = f"images/{image_type}_{timestamp}{ext}"
-        abs_path = os.path.join(f"{ROOT_DIR}", img_dir)
+        img_path = get_img_path(image_type, ext)
+        abs_path = f"{ROOT_DIR}{img_path}"
 
         # 压缩图片
         compressed_img = compress_image(contents, ext)
@@ -111,7 +111,7 @@ async def upload_image(image_type: str=Form(...), image: UploadFile = File(...),
         # 构造返回URL
 
         return {
-            'img_path': f'/{img_dir}'
+            'img_path': img_path
         }
     except Exception as e:
         session.rollback()
