@@ -1,4 +1,7 @@
 *.swp
 tmp
 .venv
-.png
+logs
+*.db
+*.png
+*.jpg
