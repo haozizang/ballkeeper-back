@@ -376,7 +376,7 @@ async def create_league(
         )
         session.add(user_league)
         session.commit()
-        logger.error(f"创建联赛成功: {league}")
+        logger.info(f"创建联赛成功: {league}")
 
         return {'league': league}
     except SQLAlchemyError as e:

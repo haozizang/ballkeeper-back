@@ -41,17 +41,15 @@ class Team(SQLModel, table=True):
 class League(SQLModel, table=True):
     __tablename__ = "leagues"
     id: Optional[int] = Field(default=None, primary_key=True)
-    title: str = Field(unique=True, index=True)
+    name: str = Field(unique=True, index=True)
     league_type_ind: int
     mobile: str
-    name: str
     content: Optional[str] = None
-    # creator_id: int = Field(foreign_key="users.id")
     creator_id: int = Field(index=True)
     logo_path: Optional[str] = None
 
     def __str__(self):
-        return f"League(id={self.id}, title='{self.title}')"
+        return f"League(id={self.id}, name='{self.name}')"
 
 # 添加用户-联赛关联表模型
 class UserLeague(SQLModel, table=True):
