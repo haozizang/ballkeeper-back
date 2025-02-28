@@ -28,10 +28,12 @@ async def log_request_details(request, call_next):
     logger.debug(f"Request method: {request.method}")
     logger.debug(f"Request URL: {request.url}")
 
+    '''
     # 打印请求头
     logger.debug("Request headers:")
     for header, value in request.headers.items():
         logger.debug(f"{header}: {value}")
+    '''
 
     # 打印请求体 (如果是POST/PUT请求)
     if request.method in ["POST", "PUT"]:
