@@ -359,10 +359,12 @@ async def create_league(
             creator_id=user.id
         )
 
-        img = gen_txt_img(name)
-        img_path = f"{ROOT_DIR}/images/{strfnow()}.png"
-        img.save(img_path)
-        league.logo_path = img_path
+        if not league.logo_path:
+            img = gen_txt_img(name, (100, 100))
+            img_path = get_img_path("league", ".png")
+            abs_path = f"{ROOT_DIR}{img_path}"
+            img.save(abs_path)
+            league.logo_path = img_path
 
         session.add(league)
         session.commit()
