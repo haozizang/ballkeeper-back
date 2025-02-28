@@ -390,3 +390,30 @@ async def create_league(
             )
         logger.error(f"创建联赛失败: {e}")
         raise HTTPException(status_code=500, detail="创建联赛失败")
+
+@app.get('/ballkeeper/get_league/')
+async def get_league(league_id: int, session: Session = Depends(get_session)):
+    try:
+        logger.debug(f"获取联赛失败")
+        league = session.exec(select(League).where(League.id == league_id)).first()
+        if not league:
+            raise HTTPException(
+                status_code=401,
+                detail="联赛不存在"
+            )
+
+        return {'league': league}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"获取联赛失败: {e}")
+        raise HTTPException(status_code=500, detail="获取联赛失败")
+
+@app.get('/ballkeeper/get_league_list/')
+async def get_league_list(session: Session = Depends(get_session)):
+    try:
+        leagues = session.exec(select(League)).all()
+        return {'leagues': leagues}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"获取联赛列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取联赛列表失败")
