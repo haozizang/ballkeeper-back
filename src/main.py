@@ -25,11 +25,11 @@ app = FastAPI()
 @app.middleware("http")
 async def log_request_details(request, call_next):
     # 打印请求方法和URL
-    logger.debug(f"请求方法: {request.method}")
-    logger.debug(f"请求URL: {request.url}")
+    logger.debug(f"Request method: {request.method}")
+    logger.debug(f"Request URL: {request.url}")
 
     # 打印请求头
-    logger.debug("请求头:")
+    logger.debug("Request headers:")
     for header, value in request.headers.items():
         logger.debug(f"{header}: {value}")
 
@@ -37,9 +37,9 @@ async def log_request_details(request, call_next):
     if request.method in ["POST", "PUT"]:
         try:
             body = await request.body()
-            logger.debug(f"请求体decode: {body.decode()[:100]}")
+            logger.debug(f"Request body decode: {body.decode()[:100]}")
         except Exception as e:
-            logger.debug(f"无法读取请求体: {e}")
+            logger.debug(f"Could not read request body: {e}")
 
     # 继续处理请求
     response = await call_next(request)
@@ -63,7 +63,7 @@ async def register(user: User, session: Session = Depends(get_session)):
         if user_exists:
             raise HTTPException(
                 status_code=409,
-                detail="用户已存在"
+                detail="User already exists"
             )
 
         # 生成默认头像
@@ -80,15 +80,15 @@ async def register(user: User, session: Session = Depends(get_session)):
         return {'user': user}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"数据库操作错误: {e}")
+        logger.error(f"Database operation error: {e}")
         raise HTTPException(
             status_code=500,
-            detail="数据库操作失败"
+            detail="Database operation failed"
         )
 
 @app.post('/ballkeeper/upload_image/')
 async def upload_image(image_type: str=Form(...), image: UploadFile = File(...), session: Session = Depends(get_session)):
-    logger.info(f"DBG: image_type: {image_type}")
+    logger.info(f"DEBUG: image_type: {image_type}")
     try:
         # 读取上传文件内容
         contents = await image.read()
@@ -104,7 +104,7 @@ async def upload_image(image_type: str=Form(...), image: UploadFile = File(...),
         compressed_img = compress_image(contents, ext)
 
         # 保存压缩后的图片
-        logger.info(f"DBG: save compressed image to {abs_path}")
+        logger.info(f"DEBUG: save compressed image to {abs_path}")
         with open(abs_path, "wb") as f:
             f.write(compressed_img)
 
@@ -115,36 +115,36 @@ async def upload_image(image_type: str=Form(...), image: UploadFile = File(...),
         }
     except Exception as e:
         session.rollback()
-        logger.error(f"上传图片失败: {e}")
+        logger.error(f"Failed to upload image: {e}")
         raise HTTPException(
             status_code=500,
-            detail="上传图片失败"
+            detail="Failed to upload image"
         )
 
 @app.post('/ballkeeper/login/')
 async def login(user: User, session: Session = Depends(get_session)):
     try:
-        logger.debug(f"登录用户: {user}")
+        logger.debug(f"Login user: {user}")
         user = session.exec(select(User).where(User.username == user.username)).first()
         if not user:
             raise HTTPException(
                 status_code=404,
-                detail="用户不存在"
+                detail="User does not exist"
             )
 
         if user.password != user.password:
             raise HTTPException(
                 status_code=401,
-                detail="密码错误"
+                detail="Incorrect password"
             )
 
         return {'username': user.username, 'avatar_path': user.avatar_path}
     except Exception as e:
         session.rollback()
-        logger.error(f"数据库操作错误: {e}")
+        logger.error(f"Database operation error: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"登录失败: {e}"
+            detail=f"Login failed: {e}"
         )
 
 @app.post('/ballkeeper/create_team/')
@@ -163,7 +163,7 @@ async def create_team(
         if not user:
             raise HTTPException(
                 status_code=401,
-                detail="用户不存在"
+                detail="User does not exist"
             )
 
         # 创建新团队
@@ -194,20 +194,20 @@ async def create_team(
         )
         session.add(user_team)
         session.commit()
-        logger.error(f"创建团队成功: {team}")
+        logger.info(f"Team created successfully: {team}")
 
         return {'team': team}
     except SQLAlchemyError as e:
         session.rollback()
         # 检查是否是唯一约束违反错误
-        logger.error(f"caught SQLAlchemyError: {e}")
+        logger.error(f"Caught SQLAlchemyError: {e}")
         if "UNIQUE constraint failed" in str(e):
             raise HTTPException(
                 status_code=409,  # Conflict
-                detail="球队名称已存在"
+                detail="Team name already exists"
             )
-        logger.error(f"创建团队失败: {e}")
-        raise HTTPException(status_code=500, detail="创建团队失败")
+        logger.error(f"Failed to create team: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create team")
 
 @app.post('/ballkeeper/get_team/')
 async def get_team(team_id: int = Body(..., embed=True), session: Session = Depends(get_session)):
@@ -221,13 +221,13 @@ async def get_team(team_id: int = Body(..., embed=True), session: Session = Depe
         # 执行查询
         team = session.exec(query).first()
         if not team:
-            raise HTTPException(status_code=404, detail="球队不存在")
+            raise HTTPException(status_code=404, detail="Team does not exist")
 
         return {'team': team}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"获取球队(id={team_id})失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取球队(id={team_id})失败")
+        logger.error(f"Failed to get team(id={team_id}): {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get team(id={team_id})")
 
 '''
 单个参数时, 需要 embed=True 来强制使用 JSON 对象格式
@@ -246,7 +246,7 @@ async def get_team_list(
         if not user:
             raise HTTPException(
                 status_code=401,
-                detail="用户不存在"
+                detail="User does not exist"
             )
 
         # 构建基础查询
@@ -283,10 +283,10 @@ async def get_team_list(
 
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"获取球队列表失败: {e}")
+        logger.error(f"Failed to get team list: {e}")
         raise HTTPException(
             status_code=500,
-            detail="获取球队列表失败"
+            detail="Failed to get team list"
         )
 
 @app.post('/ballkeeper/follow_team/')
@@ -298,11 +298,11 @@ async def follow_team(
     try:
         user = session.exec(select(User).where(User.username == username)).first()
         if not user:
-            raise HTTPException(status_code=401, detail="用户不存在")
+            raise HTTPException(status_code=401, detail="User does not exist")
 
         team = session.exec(select(Team).where(Team.id == team_id)).first()
         if not team:
-            raise HTTPException(status_code=404, detail="球队不存在")
+            raise HTTPException(status_code=404, detail="Team does not exist")
 
         # 检查是否已经加入
         existing = session.exec(
@@ -313,7 +313,7 @@ async def follow_team(
         ).first()
 
         if existing:
-            raise HTTPException(status_code=400, detail="已经加入该球队")
+            raise HTTPException(status_code=400, detail="Already joined this team")
 
         # 创建新的关联记录
         user_team = UserTeam(
@@ -330,8 +330,8 @@ async def follow_team(
         raise
     except Exception as e:
         session.rollback()
-        logger.error(f"加入球队失败: {e}")
-        raise HTTPException(status_code=500, detail="加入球队失败")
+        logger.error(f"Failed to join team: {e}")
+        raise HTTPException(status_code=500, detail="Failed to join team")
 
 @app.post('/ballkeeper/create_league/')
 async def create_league(
@@ -347,7 +347,7 @@ async def create_league(
         if not user:
             raise HTTPException(
                 status_code=401,
-                detail="用户不存在"
+                detail="User does not exist"
             )
 
         # 创建新联赛
@@ -376,37 +376,37 @@ async def create_league(
         )
         session.add(user_league)
         session.commit()
-        logger.info(f"创建联赛成功: {league}")
+        logger.info(f"League created successfully: {league}")
 
         return {'league': league}
     except SQLAlchemyError as e:
         session.rollback()
         # 检查是否是唯一约束违反错误
-        logger.error(f"caught SQLAlchemyError: {e}")
+        logger.error(f"Caught SQLAlchemyError: {e}")
         if "UNIQUE constraint failed" in str(e):
             raise HTTPException(
                 status_code=409,  # Conflict
-                detail="联赛名称已存在"
+                detail="League name already exists"
             )
-        logger.error(f"创建联赛失败: {e}")
-        raise HTTPException(status_code=500, detail="创建联赛失败")
+        logger.error(f"Failed to create league: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create league")
 
 @app.get('/ballkeeper/get_league/')
 async def get_league(league_id: int, session: Session = Depends(get_session)):
     try:
-        logger.debug(f"获取联赛失败")
+        logger.debug(f"Fetching league")
         league = session.exec(select(League).where(League.id == league_id)).first()
         if not league:
             raise HTTPException(
                 status_code=401,
-                detail="联赛不存在"
+                detail="League does not exist"
             )
 
         return {'league': league}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"获取联赛失败: {e}")
-        raise HTTPException(status_code=500, detail="获取联赛失败")
+        logger.error(f"Failed to get league: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get league")
 
 @app.get('/ballkeeper/get_league_list/')
 async def get_league_list(session: Session = Depends(get_session)):
@@ -415,5 +415,5 @@ async def get_league_list(session: Session = Depends(get_session)):
         return {'leagues': leagues}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"获取联赛列表失败: {e}")
-        raise HTTPException(status_code=500, detail="获取联赛列表失败")
+        logger.error(f"Failed to get league list: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get league list")
