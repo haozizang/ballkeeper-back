@@ -16,8 +16,7 @@ from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
 from models import User, Team, UserTeam, League, UserLeague, get_session
-from utils import path_from_dir, strfnow, compress_image, get_img_path
-
+from utils import path_from_dir, compress_image, get_img_path
 
 app = FastAPI()
 
@@ -342,6 +341,7 @@ async def create_league(
     league_type_ind: int = Body(...),
     mobile: str = Body(...),
     content: Optional[str] = Body(None),
+    cover_path: Optional[str] = Body(None),
     session: Session = Depends(get_session)
 ):
     try:
@@ -358,15 +358,16 @@ async def create_league(
             league_type_ind=league_type_ind,
             mobile=mobile,
             content=content,
-            creator_id=user.id
+            creator_id=user.id,
+            cover_path=cover_path
         )
 
-        if not league.logo_path:
+        if not league.cover_path:
             img = gen_txt_img(name, (100, 100))
             img_path = get_img_path("league", ".png")
             abs_path = f"{ROOT_DIR}{img_path}"
             img.save(abs_path)
-            league.logo_path = img_path
+            league.cover_path = img_path
 
         session.add(league)
         session.commit()

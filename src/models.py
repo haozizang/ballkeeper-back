@@ -46,7 +46,7 @@ class League(SQLModel, table=True):
     mobile: str
     content: Optional[str] = None
     creator_id: int = Field(index=True)
-    logo_path: Optional[str] = None
+    cover_path: Optional[str] = None
 
     def __str__(self):
         return f"League(id={self.id}, name='{self.name}')"
