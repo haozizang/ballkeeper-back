@@ -413,11 +413,25 @@ async def get_league(league_id: int, session: Session = Depends(get_session)):
         logger.error(f"Failed to get league: {e}")
         raise HTTPException(status_code=500, detail="Failed to get league")
 
-@app.get('/ballkeeper/get_league_list/')
-async def get_league_list(session: Session = Depends(get_session)):
+@app.get('/ballkeeper/get_leagues/')
+async def get_leagues(limit : int = 10, offset : int = 0, session: Session = Depends(get_session)):
     try:
-        leagues = session.exec(select(League)).all()
-        return {'leagues': leagues}
+        leagues = session.exec(select(League).offset(offset).limit(limit)).all()
+        return {'leagues': leagues, 'offset': offset, 'limit': limit}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Failed to get league list: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get league list")
+
+@app.get('/ballkeeper/get_my_leagues/')
+async def get_my_leagues(username : str, limit : int = 10, offset : int = 0, session: Session = Depends(get_session)):
+    try:
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User does not exist")
+
+        leagues = session.exec(select(League).where(League.creator_id == user.id).offset(offset).limit(limit)).all()
+        return {'leagues': leagues, 'offset': offset, 'limit': limit}
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Failed to get league list: {e}")
