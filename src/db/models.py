@@ -1,7 +1,6 @@
 from typing import Optional
-from sqlmodel import SQLModel, Field, create_engine, Session
+from sqlmodel import SQLModel, Field
 from datetime import datetime
-from envs import DATABASE_URL
 
 # 添加用户-球队关联表模型
 class UserTeam(SQLModel, table=True):
@@ -71,14 +70,3 @@ class Activity(SQLModel, table=True):
 
     def __str__(self):
         return f"Activity(id={self.id}, name='{self.name}')"
-
-# 数据库配置 - 使用 SQLite
-global_engine = create_engine(DATABASE_URL)
-
-# 创建数据库表
-SQLModel.metadata.create_all(global_engine)
-
-# 依赖项
-def get_session():
-    with Session(global_engine) as session:
-        yield session

@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
-from models import User, Activity, get_session
+from db.models import User, Activity
+from db.database import get_session
 from utils import get_img_path
 
 logger = logging.getLogger("ballkeeper")

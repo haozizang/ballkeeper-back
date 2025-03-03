@@ -3,7 +3,7 @@ import logging
 from envs import ROOT_DIR
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlmodel import Session
-from models import get_session
+from db.database import get_session
 from utils import compress_image, get_img_path
 
 

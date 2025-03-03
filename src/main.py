@@ -9,6 +9,11 @@ from log import create_logger
 
 logger = create_logger(name="ballkeeper", level="debug", log_dir=f"{ROOT_DIR}/logs")
 
+from db.database import init_db
+from db.models import *
+
+init_db()
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from routers import users, teams, leagues, activities, others

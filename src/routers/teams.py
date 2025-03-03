@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, B
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
-from models import User, Team, UserTeam, League, UserLeague, get_session
+from db.models import User, Team, UserTeam, League, UserLeague
+from db.database import get_session
 from utils import path_from_dir, compress_image, get_img_path
 
 
