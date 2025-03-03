@@ -1,7 +1,7 @@
 import sys
 import os
 
-# 添加main.py所在目录到 Python 路径
+# NOTE: 此行代码应在所有导入之前: 添加main所在目录到Python路径
 sys.path.append(os.path.dirname(__file__))
 
 from envs import ROOT_DIR, IMG_DIR
@@ -12,6 +12,7 @@ logger = create_logger(name="ballkeeper", level="debug", log_dir=f"{ROOT_DIR}/lo
 from db.database import init_db
 from db.models import *
 
+# 初始化数据库,创建数据库表
 init_db()
 
 from fastapi import FastAPI
