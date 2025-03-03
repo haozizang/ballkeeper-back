@@ -59,6 +59,19 @@ class UserLeague(SQLModel, table=True):
     league_id: int = Field(foreign_key="leagues.id")
     role: str = Field(default="creator")  # 可以是 "creator", "admin", "member" 等
 
+class Activity(SQLModel, table=True):
+    __tablename__ = "activities"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True, index=True)
+    type_ind: int
+    mobile: str
+    content: Optional[str] = None
+    creator_id: int = Field(index=True)
+    cover_path: Optional[str] = None
+
+    def __str__(self):
+        return f"Activity(id={self.id}, name='{self.name}')"
+
 # 数据库配置 - 使用 SQLite
 global_engine = create_engine(DATABASE_URL)
 
