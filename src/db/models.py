@@ -67,11 +67,12 @@ class Activity(SQLModel, table=True):
     __tablename__ = "activities"
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
-    type_ind: int
+    type_id: int
     mobile: str
     content: Optional[str] = None
     creator_id: int = Field(index=True)
     cover_path: Optional[str] = None
+    start_time: int = Field(default=0)
 
     def __str__(self):
         return f"Activity(id={self.id}, name='{self.name}')"
