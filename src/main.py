@@ -44,7 +44,7 @@ async def log_request_details(request, call_next):
     if request.method in ["POST", "PUT"]:
         try:
             body = await request.body()
-            logger.debug(f"Request body decode: {body.decode()[:100]}")
+            logger.debug(f"Request body decode: {body.decode()}")
         except Exception as e:
             logger.debug(f"Could not read request body: {e}")
 

@@ -2,6 +2,19 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 from datetime import datetime
 
+class UserBase(SQLModel):
+    id: Optional[int] = Field(default=None, primary_key=True, index=True)
+    username: str = Field(unique=True, index=True)
+    avatar_path: Optional[str] = None
+    gender: int = Field(default=0)
+    mobile: str = Field(default="")
+    create_time: datetime = Field(default_factory=datetime.utcnow)
+
+class User(UserBase, table=True):
+    __tablename__ = "users"
+    password: str
+
+
 # 添加用户-球队关联表模型
 class UserTeam(SQLModel, table=True):
     __tablename__ = "user_team"
@@ -10,14 +23,6 @@ class UserTeam(SQLModel, table=True):
     team_id: int = Field(foreign_key="teams.id")
     follow_time: datetime = Field(default_factory=datetime.utcnow)
     role: str = Field(default="member")  # 可以是 "creator", "admin", "member" 等
-
-# 修改 User 模型，移除 team_id 字段
-class User(SQLModel, table=True):
-    __tablename__ = "users"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(unique=True, index=True)
-    password: str
-    avatar_path: Optional[str] = None
 
 # 添加 Team 模型
 class Team(SQLModel, table=True):

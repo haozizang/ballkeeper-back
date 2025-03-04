@@ -1,11 +1,10 @@
-import os
 import logging
 from envs import ROOT_DIR
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
-from db.models import User
+from db.models import User, UserBase
 from db.database import get_session
 from utils import get_img_path
 
@@ -35,7 +34,7 @@ async def register(user: User, session: Session = Depends(get_session)):
         session.add(user)
         session.commit()
         session.refresh(user)
-        return {'user': user}
+        return {'user': UserBase.model_validate(user)}
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")
@@ -61,7 +60,7 @@ async def login(user: User, session: Session = Depends(get_session)):
                 detail="Incorrect password"
             )
 
-        return {'username': user.username, 'avatar_path': user.avatar_path}
+        return {'id': user.id, 'username': user.username, 'avatar_path': user.avatar_path}
     except Exception as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")
