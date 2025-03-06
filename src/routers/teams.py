@@ -189,14 +189,8 @@ async def get_team_list(
         if keyword.strip():
             query = query.where(Team.title.contains(keyword))
 
-        # 获取总记录数
-        total_count = len(session.exec(query).all())
-
-        # 添加分页(SELECT columns FROM table LIMIT [number_of_rows] OFFSET [number_of_rows_to_skip];)
-        query = query.offset(offset).limit(limit)
-
-        # 执行查询
-        results = session.exec(query).all()
+        # 直接添加分页并执行查询 - 完全移除计数部分
+        results = session.exec(query.offset(offset).limit(limit)).all()
 
         # 构造返回数据
         team_list = [
@@ -208,7 +202,8 @@ async def get_team_list(
             for team, follow_time, role in results
         ]
 
-        return {'total': total_count, 'team_list': team_list, 'offset': offset, 'limit': limit}
+        # 简化的响应，不包含总数
+        return {'team_list': team_list, 'offset': offset, 'limit': limit}
 
     except SQLAlchemyError as e:
         session.rollback()
