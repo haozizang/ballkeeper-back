@@ -69,6 +69,7 @@ class Activity(SQLModel, table=True):
     name: str = Field(unique=True, index=True)
     type_id: int
     mobile: str
+    address: Optional[str] = None
     content: Optional[str] = None
     creator_id: int = Field(index=True)
     cover_path: Optional[str] = None

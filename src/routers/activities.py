@@ -43,6 +43,19 @@ async def create_activity(activity: Activity, session: Session = Depends(get_ses
             detail="Database operation failed"
         )
 
+@router.get('/ballkeeper/get_my_activities/')
+async def get_my_activities(user_id: int, session: Session = Depends(get_session)):
+    try:
+        activities = session.exec(select(Activity).where(Activity.creator_id == user_id)).all()
+        return {'activities': activities}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Database operation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database operation failed"
+        )
+
 @router.get('/ballkeeper/get_activities/')
 async def get_activities(session: Session = Depends(get_session)):
     try:
