@@ -8,12 +8,12 @@ class UserBase(SQLModel):
     avatar_path: Optional[str] = None
     gender: int = Field(default=0)
     mobile: str = Field(default="")
+    team_id: Optional[int] = None
     create_time: datetime = Field(default_factory=datetime.utcnow)
 
 class User(UserBase, table=True):
     __tablename__ = "users"
     password: str
-
 
 # 添加用户-球队关联表模型
 class UserTeam(SQLModel, table=True):
@@ -28,18 +28,17 @@ class UserTeam(SQLModel, table=True):
 class Team(SQLModel, table=True):
     __tablename__ = "teams"
     id: Optional[int] = Field(default=None, primary_key=True)
-    title: str = Field(unique=True, index=True)
+    name: str = Field(unique=True, index=True)
     category_id: int
     is_public: bool = Field(default=True)
     mobile: str
-    name: str
     content: Optional[str] = None
     # creator_id: int = Field(foreign_key="users.id")
     creator_id: int = Field(index=True)
     logo_path: Optional[str] = None
 
     def __str__(self):
-        return f"Team(id={self.id}, title='{self.title}')"
+        return f"Team(id={self.id}, name='{self.name}')"
 
 # 添加 League 模型
 class League(SQLModel, table=True):
