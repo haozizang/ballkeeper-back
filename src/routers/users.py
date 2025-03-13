@@ -60,7 +60,7 @@ async def login(user: User, session: Session = Depends(get_session)):
                 detail="Incorrect password"
             )
 
-        return {'id': user.id, 'username': user.username, 'avatar_path': user.avatar_path}
+        return {'user': UserBase.model_validate(user)}
     except Exception as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")
