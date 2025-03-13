@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
 from db.models import User, Team, UserTeam, League, UserLeague
 from db.database import get_session
-from utils import path_from_dir, compress_image, get_img_path
+from utils import compress_image, get_img_path
 
 
 logger = logging.getLogger("ballkeeper")
@@ -48,32 +48,6 @@ async def upload_image(image_type: str=Form(...), image: UploadFile = File(...),
         raise HTTPException(
             status_code=500,
             detail="Failed to upload image"
-        )
-
-@router.post('/ballkeeper/login/')
-async def login(user: User, session: Session = Depends(get_session)):
-    try:
-        logger.debug(f"Login user: {user}")
-        user = session.exec(select(User).where(User.username == user.username)).first()
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail="User does not exist"
-            )
-
-        if user.password != user.password:
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect password"
-            )
-
-        return {'username': user.username, 'avatar_path': user.avatar_path}
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Database operation error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Login failed: {e}"
         )
 
 @router.post('/ballkeeper/create_team/')
