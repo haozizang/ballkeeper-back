@@ -89,6 +89,10 @@ async def create_team(
         session.commit()
         session.refresh(team)
 
+        user.team_id = team.id
+        session.add(user)
+        session.commit()
+
         # 创建用户-球队关联记录,设置创建者角色
         user_team = UserTeam(
             user_id=user.id,
