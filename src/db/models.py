@@ -71,6 +71,7 @@ class Activity(SQLModel, table=True):
     address: Optional[str] = None
     content: Optional[str] = None
     creator_id: int = Field(index=True)
+    team_id: Optional[int] = None
     cover_path: Optional[str] = None
     start_time: int = Field(default=0)
 

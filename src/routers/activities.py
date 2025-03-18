@@ -15,6 +15,7 @@ router = APIRouter()
 @router.post('/ballkeeper/create_activity/')
 async def create_activity(activity: Activity, session: Session = Depends(get_session)):
     try:
+        logger.debug(f"Creating activity: {activity}")
         # 检查用户是否存在
         user_exists = session.exec(select(User).where(User.id == activity.creator_id)).first()
         if not user_exists:
