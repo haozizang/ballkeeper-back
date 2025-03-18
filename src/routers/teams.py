@@ -116,8 +116,8 @@ async def create_team(
         logger.error(f"Failed to create team: {e}")
         raise HTTPException(status_code=500, detail="Failed to create team")
 
-@router.post('/ballkeeper/get_team/')
-async def get_team(team_id: int = Body(..., embed=True), session: Session = Depends(get_session)):
+@router.get('/ballkeeper/get_team/')
+async def get_team(team_id: int, session: Session = Depends(get_session)):
     try:
         # 构建基础查询
         query = (
