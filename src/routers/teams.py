@@ -140,12 +140,12 @@ async def get_team(team_id: int, session: Session = Depends(get_session)):
 单个参数时, 需要 embed=True 来强制使用 JSON 对象格式
 多个参数时, FastAPI 自动使用 JSON 对象格式，不需要 embed=True
 '''
-@router.post('/ballkeeper/get_team_list/')
+@router.get('/ballkeeper/get_team_list/')
 async def get_team_list(
-    username: str = Body(...),
-    keyword: str = Body(...),
-    limit: int = Body(...),
-    offset: int = Body(...),
+    username: str,
+    keyword: str,
+    limit: int,
+    offset: int,
     session: Session = Depends(get_session)
 ):
     try:
