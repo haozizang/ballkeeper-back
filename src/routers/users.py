@@ -68,3 +68,22 @@ async def login(user: User, session: Session = Depends(get_session)):
             status_code=500,
             detail=f"Login failed: {e}"
         )
+
+@router.get('/ballkeeper/get_user/')
+async def get_user(user_id: int, session: Session = Depends(get_session)):
+    try:
+        logger.debug(f"get user by id: {user_id}")
+        user = session.exec(select(User).where(User.id == user_id)).first()
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User does not exist"
+            )
+        return {'user': UserBase.model_validate(user)}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Database operation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"get_user failed: {e}"
+        )
