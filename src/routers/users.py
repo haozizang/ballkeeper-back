@@ -43,18 +43,18 @@ async def register(user: User, session: Session = Depends(get_session)):
             detail="Database operation failed"
         )
 
-@router.post('/ballkeeper/login/')
-async def login(user: User, session: Session = Depends(get_session)):
+@router.get('/ballkeeper/login/')
+async def login(username: str, password: str, session: Session = Depends(get_session)):
     try:
-        logger.debug(f"Login user: {user}")
-        user = session.exec(select(User).where(User.username == user.username)).first()
+        logger.debug(f"Login user: {username}")
+        user = session.exec(select(User).where(User.username == username)).first()
         if not user:
             raise HTTPException(
                 status_code=404,
                 detail="User does not exist"
             )
 
-        if user.password != user.password:
+        if user.password != password:
             raise HTTPException(
                 status_code=401,
                 detail="Incorrect password"
