@@ -17,7 +17,7 @@ class User(UserBase, table=True):
 
 # 添加用户-球队关联表模型
 class UserTeam(SQLModel, table=True):
-    __tablename__ = "user_team"
+    __tablename__ = "user_teams"
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")
     team_id: int = Field(foreign_key="teams.id")
@@ -56,7 +56,7 @@ class League(SQLModel, table=True):
 
 # 添加用户-联赛关联表模型
 class UserLeague(SQLModel, table=True):
-    __tablename__ = "user_league"
+    __tablename__ = "user_leagues"
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")
     league_id: int = Field(foreign_key="leagues.id")
