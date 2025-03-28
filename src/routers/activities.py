@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
-from db.models import User, Activity
+from db.models import User, UserBase, Activity, ActivityUser
 from db.database import get_session
 from utils import get_img_path
 
@@ -75,6 +75,36 @@ async def get_activities(session: Session = Depends(get_session)):
     try:
         activities = session.exec(select(Activity)).all()
         return {'activities': activities}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Database operation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database operation failed"
+        )
+
+@router.get('/ballkeeper/get_act_users/')
+async def get_act_users(act_id: int, session: Session = Depends(get_session)):
+    try:
+        act_users = session.exec(
+            select(ActivityUser).where(
+                ActivityUser.activity_id == act_id
+            )
+        ).all()
+
+        logger.debug(f"DBG: 0 act_users: {act_users}")
+
+        users = []
+        for act_user in act_users:
+            logger.debug(f"DBG: 1 act_user: {act_user}")
+            user_exists = session.exec(select(User).where(User.id == act_user.user_id)).first()
+            if not user_exists:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"User[{act_user.user_id}] for Activity[{act_id}] not exists"
+                )
+            users.append(UserBase.model_validate(user_exists))
+        return {'users': users}
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")

@@ -77,3 +77,10 @@ class Activity(SQLModel, table=True):
 
     def __str__(self):
         return f"Activity(id={self.id}, name='{self.name}')"
+
+class ActivityUser(SQLModel, table=True):
+    __tablename__ = "activity_users"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    activity_id: int = Field(foreign_key="activities.id")
+    user_id: int = Field(foreign_key="users.id")
+    signup_time: int = Field(default=0)
