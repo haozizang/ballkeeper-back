@@ -29,7 +29,7 @@ class Team(SQLModel, table=True):
     __tablename__ = "teams"
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True, index=True)
-    category_id: int
+    team_type: int
     is_public: bool = Field(default=True)
     mobile: str
     content: Optional[str] = None

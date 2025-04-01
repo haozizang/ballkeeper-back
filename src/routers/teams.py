@@ -54,7 +54,7 @@ async def upload_image(image_type: str=Form(...), image: UploadFile = File(...),
 async def create_team(
     username: str = Body(...),
     name: str = Body(...),
-    category_id: int = Body(...),
+    team_type: int = Body(...),
     is_public: bool = Body(...),
     mobile: str = Body(...),
     content: Optional[str] = Body(None),
@@ -71,7 +71,7 @@ async def create_team(
         # 创建新团队
         team = Team(
             name=name,
-            category_id=category_id,
+            team_type=team_type,
             is_public=is_public,
             mobile=mobile,
             content=content,
