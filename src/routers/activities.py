@@ -1,6 +1,6 @@
 import logging
 from envs import ROOT_DIR
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
@@ -105,6 +105,23 @@ async def get_act_users(act_id: int, session: Session = Depends(get_session)):
                 )
             users.append(UserBase.model_validate(user_exists))
         return {'users': users}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Database operation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database operation failed"
+        )
+
+@router.post('/ballkeeper/signup_act/')
+async def signup_act(
+    act_id: int = Body(...),
+    user_id: int = Body(...),
+    signup_type: int = Body(...),
+    session: Session = Depends(get_session)):
+    try:
+        activity = session.exec(select(Activity).where(Activity.id == act_id)).first()
+        return {'activity': activity}
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")
