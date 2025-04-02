@@ -22,7 +22,7 @@ def create_logger(name: str, log_dir: str, level: str = 'INFO') -> logging.Logge
 
     # 设置日志格式
     formatter = logging.Formatter(
-        '[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s',
+        '[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d:%(funcName)s] %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
