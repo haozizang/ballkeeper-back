@@ -2,6 +2,7 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 from datetime import datetime
 from constants import SignupType
+import sqlalchemy
 
 class UserBase(SQLModel):
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
@@ -87,3 +88,8 @@ class ActivityUser(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id")
     signup_type: int = Field(default=SignupType.Unknown)
     create_time: int = Field(default=0)
+    
+    # 添加联合唯一约束
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint("activity_id", "user_id", name="uix_activity_user"),
+    )
