@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlmodel import Session, select
 from sqlalchemy.exc import SQLAlchemyError
 from img_generator.img_gen import gen_txt_img
-from db.models import User, UserBase, Activity, ActivityUser
+from db.models import User, UserBase, Activity, ActivityUser, Team
 from db.database import get_session
 from utils import get_img_path
+from constants import SignupType
 
 logger = logging.getLogger("ballkeeper")
 
@@ -35,19 +36,6 @@ async def create_activity(activity: Activity, session: Session = Depends(get_ses
         session.add(activity)
         session.commit()
         session.refresh(activity)
-        return {'activity': activity}
-    except SQLAlchemyError as e:
-        session.rollback()
-        logger.error(f"Database operation error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database operation failed"
-        )
-
-@router.get('/ballkeeper/get_activity/')
-async def get_activity(activity_id: int, session: Session = Depends(get_session)):
-    try:
-        activity = session.exec(select(Activity).where(Activity.id == activity_id)).first()
         return {'activity': activity}
     except SQLAlchemyError as e:
         session.rollback()
@@ -93,18 +81,46 @@ async def get_act_users(act_id: int, session: Session = Depends(get_session)):
         ).all()
 
         logger.debug(f"DBG: 0 act_users: {act_users}")
-
-        users = []
+        attend_users = []
+        pending_users = []
+        absent_users = []
         for act_user in act_users:
-            logger.debug(f"DBG: 1 act_user: {act_user}")
             user_exists = session.exec(select(User).where(User.id == act_user.user_id)).first()
             if not user_exists:
                 raise HTTPException(
                     status_code=404,
                     detail=f"User[{act_user.user_id}] for Activity[{act_id}] not exists"
                 )
-            users.append(UserBase.model_validate(user_exists))
-        return {'users': users}
+            if act_user.signup_type == SignupType.ATTENDING:
+                attend_users.append(UserBase.model_validate(user_exists))
+            elif act_user.signup_type == SignupType.PENDING:
+                pending_users.append(UserBase.model_validate(user_exists))
+            elif act_user.signup_type == SignupType.ABSENT:
+                absent_users.append(UserBase.model_validate(user_exists))
+        return {'attend_users': attend_users, 'pending_users': pending_users, 'absent_users': absent_users}
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Database operation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Database operation failed"
+        )
+
+@router.get('/ballkeeper/get_activity/')
+async def get_activity(activity_id: int, session: Session = Depends(get_session)):
+    try:
+        activity = session.exec(select(Activity).where(Activity.id == activity_id)).first()
+        # get activity users info
+        act_users = await get_act_users(activity_id, session)
+        logger.debug(f"users for activity[{activity_id}]: {act_users}")
+
+        act_creator = session.exec(select(User).where(User.id == activity.creator_id)).first() if activity.creator_id else None
+        logger.debug(f"creator for activity[{activity_id}]: {act_creator}")
+
+        act_team = session.exec(select(Team).where(Team.id == activity.team_id)).first() if activity.team_id != 0 else None
+        logger.debug(f"team for activity[{activity_id}]: {act_team}")
+
+        return {'activity': activity, **act_users, 'creator': UserBase.model_validate(act_creator), 'team': act_team}
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")
@@ -121,7 +137,29 @@ async def signup_act(
     session: Session = Depends(get_session)):
     try:
         activity = session.exec(select(Activity).where(Activity.id == act_id)).first()
-        return {'activity': activity}
+        if not activity:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Activity[{act_id}] not exists"
+            )
+        # check user_id is valid
+        user = session.exec(select(User).where(User.id == user_id)).first()
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"User[{user_id}] not exists"
+            )
+        # create activityUser
+        activity_user = ActivityUser(
+            activity_id=act_id,
+            user_id=user_id,
+            signup_type=signup_type
+        )
+        session.add(activity_user)
+        session.commit()
+        session.refresh(activity_user)
+        session.refresh(user)
+        return {'activity_user': activity_user, 'user': user}
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Database operation error: {e}")

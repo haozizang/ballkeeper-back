@@ -1,6 +1,7 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field
 from datetime import datetime
+from constants import SignupType
 
 class UserBase(SQLModel):
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
@@ -72,6 +73,7 @@ class Activity(SQLModel, table=True):
     content: Optional[str] = None
     creator_id: int = Field(index=True)
     team_id: Optional[int] = None
+    max_attend: int = Field(default=0)
     cover_path: Optional[str] = None
     start_time: int = Field(default=0)
 
@@ -83,5 +85,5 @@ class ActivityUser(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     activity_id: int = Field(foreign_key="activities.id")
     user_id: int = Field(foreign_key="users.id")
-    signup_type: int = Field(default=0)
+    signup_type: int = Field(default=SignupType.Unknown)
     create_time: int = Field(default=0)
