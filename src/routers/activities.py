@@ -161,5 +161,5 @@ async def signup_act(
         error_msg = f'DB error: {str(e)}'
         logger.error(error_msg)
         if 'unique constraint' in error_msg.lower():
-            raise HTTPException(status_code=409, detail=f'User[{user_id}] already signed up for activity[{act_id}]')
+            raise HTTPException(status_code=409, detail=f'用户已经报名了这次活动')
         raise HTTPException(status_code=500, detail=error_msg)
