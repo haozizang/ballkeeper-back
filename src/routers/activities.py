@@ -8,6 +8,7 @@ from db.models import User, UserBase, Activity, ActivityUser, Team
 from db.database import get_session
 from utils import get_img_path
 from constants import SignupType
+from datetime import datetime
 
 logger = logging.getLogger("ballkeeper")
 
@@ -134,24 +135,25 @@ async def signup_act(
     try:
         activity = session.exec(select(Activity).where(Activity.id == act_id)).first()
         if not activity:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Activity[{act_id}] not exists"
-            )
+            raise HTTPException(status_code=404, detail=f"Activity[{act_id}] not exists")
+
         # check user_id is valid
         user = session.exec(select(User).where(User.id == user_id)).first()
         if not user:
-            raise HTTPException(
-                status_code=404,
-                detail=f"User[{user_id}] not exists"
-            )
-        # create activityUser
+            raise HTTPException(status_code=404, detail=f"User[{user_id}] not exists")
+
+        # 创建ActivityUser对象
         activity_user = ActivityUser(
             activity_id=act_id,
             user_id=user_id,
-            signup_type=signup_type
+            signup_type=signup_type,
+            create_time=int(datetime.now().timestamp())  # 仅在新建时生效
         )
-        session.add(activity_user)
+
+        # merge操作会自动检查是否存在记录，存在则更新，不存在则插入
+        activity_user = session.merge(activity_user)
+        logger.debug(f"更新或创建用户报名: user_id={user_id}, activity_id={act_id}, signup_type={signup_type}")
+
         session.commit()
         session.refresh(activity_user)
         session.refresh(user)
@@ -160,6 +162,4 @@ async def signup_act(
         session.rollback()
         error_msg = f'DB error: {str(e)}'
         logger.error(error_msg)
-        if 'unique constraint' in error_msg.lower():
-            raise HTTPException(status_code=409, detail=f'用户已经报名了这次活动')
         raise HTTPException(status_code=500, detail=error_msg)

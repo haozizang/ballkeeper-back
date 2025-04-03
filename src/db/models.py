@@ -83,9 +83,8 @@ class Activity(SQLModel, table=True):
 
 class ActivityUser(SQLModel, table=True):
     __tablename__ = "activity_users"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    activity_id: int = Field(foreign_key="activities.id")
-    user_id: int = Field(foreign_key="users.id")
+    activity_id: int = Field(primary_key=True, foreign_key="activities.id")
+    user_id: int = Field(primary_key=True, foreign_key="users.id")
     signup_type: int = Field(default=SignupType.Unknown)
     create_time: int = Field(default=0)
 
