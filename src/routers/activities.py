@@ -77,7 +77,7 @@ async def get_act_users(act_id: int, session: Session = Depends(get_session)):
         act_users = session.exec(
             select(ActivityUser).where(
                 ActivityUser.activity_id == act_id
-            )
+            ).order_by(ActivityUser.create_time)
         ).all()
 
         logger.debug(f"DBG: 0 act_users: {act_users}")
