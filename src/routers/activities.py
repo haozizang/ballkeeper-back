@@ -100,11 +100,9 @@ async def get_act_users(act_id: int, session: Session = Depends(get_session)):
         return {'attend_users': attend_users, 'pending_users': pending_users, 'absent_users': absent_users}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"Database operation error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database operation failed"
-        )
+        error_msg = f'DB error: {str(e)}'
+        logger.error(error_msg)
+        raise HTTPException(status_code=500, detail=f'DB error: {str(e)}')
 
 @router.get('/ballkeeper/get_activity/')
 async def get_activity(activity_id: int, session: Session = Depends(get_session)):
@@ -123,11 +121,9 @@ async def get_activity(activity_id: int, session: Session = Depends(get_session)
         return {'activity': activity, **act_users, 'creator': UserBase.model_validate(act_creator), 'team': act_team}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"Database operation error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database operation failed"
-        )
+        error_msg = f'DB error: {str(e)}'
+        logger.error(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.post('/ballkeeper/signup_act/')
 async def signup_act(
@@ -162,8 +158,8 @@ async def signup_act(
         return {'activity_user': activity_user, 'user': user}
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"Database operation error: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Database operation failed"
-        )
+        error_msg = f'DB error: {str(e)}'
+        logger.error(error_msg)
+        if 'unique constraint' in error_msg.lower():
+            raise HTTPException(status_code=409, detail=f'User[{user_id}] already signed up for activity[{act_id}]')
+        raise HTTPException(status_code=500, detail=error_msg)

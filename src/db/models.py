@@ -88,7 +88,7 @@ class ActivityUser(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id")
     signup_type: int = Field(default=SignupType.Unknown)
     create_time: int = Field(default=0)
-    
+
     # 添加联合唯一约束
     __table_args__ = (
         sqlalchemy.UniqueConstraint("activity_id", "user_id", name="uix_activity_user"),
